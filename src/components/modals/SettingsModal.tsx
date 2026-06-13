@@ -9,11 +9,12 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   listTrash, restoreFromTrash, permanentDelete,
-  listTemplates, deleteTemplate,
+  listTemplates, deleteTemplate, listBooks,
 } from '@/engine/note-engine'
 import { exportRawKey, sha256, getKey } from '@/engine/encryption'
+import { exportBookAsZip } from '@/engine/export-engine'
 import type { TrashItem } from '@/engine/note-engine'
-import type { Template } from '@/types'
+import type { Template, Book } from '@/types'
 
 interface SettingsModalProps {
   open: boolean
@@ -526,27 +527,83 @@ function TrashSettingsContent() {
 }
 
 function ExportSettingsContent() {
+  const [books, setBooks] = useState<Book[]>([])
+  const [loading, setLoading] = useState(true)
+  const [exportingId, setExportingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const data = listBooks()
+      setBooks(data)
+    } catch (err) {
+      console.error('加载书列表失败:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const handleExportZip = async (book: Book) => {
+    setExportingId(book.id)
+    try {
+      const blob = await exportBookAsZip(book.id)
+      const u = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = u
+      a.download = `${book.name.replace(/[\\/:*?"<>|]/g, '_')}.zip`
+      a.click()
+      URL.revokeObjectURL(u)
+    } catch (err) {
+      alert(`ZIP 导出失败: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setExportingId(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-500 leading-relaxed">
         将你的笔记导出为不同格式，方便备份和迁移。
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <button className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors">
-          <FileText className="h-6 w-6 text-emerald-500" />
-          <span className="text-sm font-medium">Markdown</span>
-          <span className="text-xs text-gray-400">单篇导出</span>
-        </button>
-        <button className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors">
-          <Download className="h-6 w-6 text-red-500" />
-          <span className="text-sm font-medium">PDF</span>
-          <span className="text-xs text-gray-400">打印导出</span>
-        </button>
-        <button className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors">
-          <Download className="h-6 w-6 text-blue-500" />
-          <span className="text-sm font-medium">ZIP</span>
-          <span className="text-xs text-gray-400">批量导出</span>
-        </button>
+
+      {/* 单篇导出提示 */}
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="text-xs text-blue-700">
+          Markdown / HTML / PDF 单篇导出：请在编辑器中打开笔记后，点击右上角「更多」菜单导出。
+        </div>
+      </div>
+
+      {/* ZIP 批量导出 */}
+      <div>
+        <div className="text-sm font-medium mb-2">批量导出（ZIP）</div>
+        {loading ? (
+          <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
+        ) : books.length === 0 ? (
+          <div className="text-center py-4">
+            <BookOpen className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">暂无书籍</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {books.map(book => (
+              <div key={book.id} className="flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg">
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-4 w-4 text-blue-500" />
+                  <div>
+                    <div className="text-sm font-medium">{book.name}</div>
+                    <div className="text-xs text-gray-400">{book.noteCount} 篇笔记</div>
+                  </div>
+                </div>
+                <button
+                  className="text-xs text-[hsl(var(--primary))] hover:underline disabled:opacity-50"
+                  onClick={() => handleExportZip(book)}
+                  disabled={exportingId === book.id}
+                >
+                  {exportingId === book.id ? '导出中...' : '导出 ZIP'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

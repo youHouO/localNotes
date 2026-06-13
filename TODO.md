@@ -60,6 +60,8 @@
 - [x] CloudManagePage: 同步进度弹窗（阶段文字+进度条+百分比）
 - [x] SettingsModal: 加密设置 UI 对接（密钥指纹/重新生成/导出）
 - [x] SettingsModal: 所有子页面添加返回按钮
+- [x] SettingsModal: 导出设置对接 export-engine（ZIP 批量导出书列表）
+- [x] NoteEditor: 导出菜单对接 export-engine（Markdown/HTML/PDF）
 - [x] flow1-create-note 冒烟测试修复（mock CREATE TABLE + 参数修正）
 - [x] encryption 冒烟测试修复（AES-CTR 篡改密文行为修正）
 

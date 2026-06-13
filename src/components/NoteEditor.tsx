@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Eye, Edit3, MoreHorizontal, Loader2, Maximize2, Minimize2,
-  PanelLeftClose, PanelLeftOpen, Hash, Undo2, Redo2, CalendarPlus,
+  PanelLeftClose, PanelLeftOpen, Hash, Undo2, Redo2, CalendarPlus, Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeleteConfirmModal } from '@/components/modals/DeleteConfirmModal'
 import { RenameModal } from '@/components/modals/RenameModal'
 import { loadNote, saveNote, deleteNote, createTemplate } from '@/engine/note-engine'
+import { exportNoteAsMarkdown, exportNoteAsHTML, exportNoteAsPDF } from '@/engine/export-engine'
 import { AUTO_SAVE_DELAY } from '@/config'
 import type { ViewMode } from '@/types'
 import ReactMarkdown from 'react-markdown'
@@ -323,13 +324,31 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
     }
     catch (err) { alert(`删除失败: ${err instanceof Error ? err.message : String(err)}`) }
   }
-  const handleExportMarkdown = () => {
-    const b = new Blob([content], { type: 'text/markdown;charset=utf-8' })
-    const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `${title}.md`; a.click(); URL.revokeObjectURL(u)
+  const handleExportMarkdown = async () => {
+    try {
+      const blob = await exportNoteAsMarkdown(noteId)
+      const u = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = u; a.download = `${title}.md`; a.click()
+      URL.revokeObjectURL(u)
+    } catch (err) {
+      alert(`Markdown 导出失败: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  const handleExportHTML = async () => {
+    try {
+      const blob = await exportNoteAsHTML(noteId)
+      const u = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = u; a.download = `${title}.html`; a.click()
+      URL.revokeObjectURL(u)
+    } catch (err) {
+      alert(`HTML 导出失败: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
   const handleExportPDF = async () => {
-    try { const { exportNoteAsPDF } = await import('@/engine/export-engine'); exportNoteAsPDF(noteId) }
-    catch (err) { alert(`PDF导出失败: ${err instanceof Error ? err.message : String(err)}`) }
+    try { await exportNoteAsPDF(noteId) }
+    catch (err) { alert(`PDF 导出失败: ${err instanceof Error ? err.message : String(err)}`) }
   }
   const handleSaveAsTemplate = async (name: string) => {
     try { await createTemplate(name, content, 'global') }
@@ -451,10 +470,11 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
             {moreMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMoreMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-[hsl(var(--border))] rounded-xl shadow-lg shadow-black/10 z-50">
-                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] rounded-t-lg transition-colors" onClick={() => { setMoreMenuOpen(false); handleExportMarkdown() }}>导出 Markdown</button>
-                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))]" onClick={() => { setMoreMenuOpen(false); handleExportPDF() }}>导出 PDF</button>
-                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))]" onClick={() => { setMoreMenuOpen(false); setSaveAsTemplateModalOpen(true) }}>另存为模板</button>
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-[hsl(var(--border))] rounded-xl shadow-lg shadow-black/10 z-50">
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] rounded-t-lg transition-colors flex items-center gap-2" onClick={() => { setMoreMenuOpen(false); handleExportMarkdown() }}><FileText className="h-3 w-3" />导出 Markdown</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] transition-colors flex items-center gap-2" onClick={() => { setMoreMenuOpen(false); handleExportHTML() }}><Download className="h-3 w-3" />导出 HTML</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] transition-colors flex items-center gap-2" onClick={() => { setMoreMenuOpen(false); handleExportPDF() }}><Download className="h-3 w-3" />导出 PDF</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] transition-colors" onClick={() => { setMoreMenuOpen(false); setSaveAsTemplateModalOpen(true) }}>另存为模板</button>
                   <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs text-red-500 hover:bg-red-50 rounded-b-lg transition-colors" onClick={() => { setMoreMenuOpen(false); setDeleteModalOpen(true) }}>删除笔记</button>
                 </div>
               </>
