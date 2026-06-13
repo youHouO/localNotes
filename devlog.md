@@ -1,6 +1,51 @@
 # 开发日志
 规则：新记录追加在顶部 | 每月归档旧记录为devlog.YYYYMM.md | 仅保留最近2周记录 | 只记录架构级改动和重大bug，避免重复踩坑
 
+## 2026-06-13（存储层重构 + 引擎模块实现 + 全部 Bug 修复）
+
+### 架构级改动：存储层从 OPFS 迁移到 File System Access API
+- **原因**：OPFS 存储在浏览器沙箱中，清除浏览器数据会丢失，违反"本地优先"原则
+- **方案**：
+  - 新增 `storage-fsaa.ts`：基于 File System Access API，数据存用户选择的系统目录
+  - 新增 `storage-opfs.ts`：OPFS 降级方案，浏览器不支持 FSA 时使用
+  - 新增 `storage-handle.ts`：Handle IndexedDB 持久化，跨会话保持权限
+  - 重写 `storage.ts`：工厂模式统一入口，统一先尝试 FSA 再降级
+  - 新增 `WelcomePicker.tsx`：首次使用引导页，让用户选择存储文件夹
+- **降级策略**：统一先尝试 FSA API，失败时自动降级到 OPFS 并显示明确提示
+- **并发安全**：`initStorage` 添加初始化锁防止并发调用
+
+### 引擎模块实现（全部新建）
+- `database.ts`：SQLite 数据库封装（sql.js），含 7 张表 + 6 个索引 + FTS5 全文搜索
+- `encryption.ts`：Web Crypto API 加密模块（AES-GCM + PBKDF2 + SHA-256）
+- `note-engine.ts`：笔记 CRUD / FTS5 搜索 / 回收站 / 模板管理
+- `image-engine.ts`：图片存储管理 + 同步状态跟踪
+- `export-engine.ts`：Markdown / HTML / PDF / ZIP 导出
+- `sync-engine.ts`：云盘同步引擎（WebDAV / FTP / SFTP / S3）
+- `builtin-notes.ts`：首次使用示例数据
+
+### Bug 修复（16 个，全部完成）
+- P0: #1（链式访问）、#4（OPFS→FSA）
+- P1: #5（软删除→.trash）、#6（setTimeout async）、#11（图片同步）、#12（退出提示）、#13（getKey try-catch）、#14（exportRawKey try-catch）
+- P2: #19（创建时间排序）、#23（手动同步按钮）、#46（ESLint 配置）
+- P3: #41-#45（边界情况，引擎重写后自然消除）
+
+### 教训
+- `git checkout -f` 在孤儿分支上可能清空 `.git` 目录，创建分支前确认有提交历史
+- 创建文件后必须 `git add` + `git status` 验证，subagent 可能静默失败
+
+### Git 提交
+```
+e80c58d fix: P3 #45 initStorage并发锁 + 更新BUG_INVENTORY标记已修复项
+60bcff7 feat(sort+sync): P2 #19/#23 创建时间排序 + 手动同步按钮
+ff75ed5 fix(sync): P1 #11/#12 图片提前同步逻辑 + 未同步图片提示
+3a199d1 feat(engine): 实现所有核心引擎模块
+6a725b5 fix(eslint): 修复ESLint配置，安装缺失依赖
+bdde331 refactor(storage): 统一先尝试FSA API，失败再降级并有明确提示
+e4d42bb feat(storage): 从OPFS迁移到File System Access API
+```
+
+---
+
 ## 2026-06-13（CodeMirror 多实例冲突修复 + 移动端适配 + 接口测试）
 
 ### 重大修复：CodeMirror 编辑器多实例冲突
