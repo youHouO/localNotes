@@ -1,6 +1,24 @@
 # 开发日志
 规则：新记录追加在顶部 | 每月归档旧记录为devlog.YYYYMM.md | 仅保留最近2周记录 | 只记录架构级改动和重大bug，避免重复踩坑
 
+## 2026-06-13（第二轮：引擎完善 + UI 增强 + 测试补充）
+
+### 引擎模块完善
+- **image-engine.ts**：集成 `browser-image-compression` 库实现 WebP 压缩（maxWidth:1920, quality:0.8），压缩失败降级保存原图
+- **export-engine.ts**：ZIP 导出改用 JSZip 库（打包笔记 .md + 图片 .webp），HTML 导出改用 react-markdown + GitHub 风格 CSS（文件改为 .tsx）
+- **sync-engine.ts**：集成 `webdav` 库实现真实 WebDAV 协议通信（testConnection/syncToCloud/restoreFromCloud），新增 `generateManifest` 从数据库生成文件清单，支持 `SyncProgressCallback` 进度回调
+- **note-engine.ts**：集成加密存储，`saveNote` 可选 AES-GCM 加密（`[ENC]` 前缀标记），`loadNote` 自动识别解密，FTS 索引始终用明文
+
+### UI 增强
+- **CloudManagePage**：同步进度弹窗（阶段文字 + 蓝色进度条 + 百分比 + 当前/总数）
+- **SettingsModal**：加密设置 UI 对接 encryption.ts（密钥指纹显示、重新生成、导出剪贴板），修正 AES-256-CTR → AES-256-GCM 描述，所有子页面添加返回按钮
+
+### 测试
+- 新增 `storage.test.ts`：33 个用例覆盖并发锁、fallback、backend 选择、代理函数、isStorageReady
+- 修复 `flow1-create-note.test.ts`：mock 缺少 CREATE TABLE 处理、createNote 参数错误
+- 修复 `encryption.test.ts`（smoke）：AES-CTR 篡改密文不抛异常（流密码特性），改为验证明文不同
+- 全部 151 个测试通过（13 个测试文件）
+
 ## 2026-06-13（存储层重构 + 引擎模块实现 + 全部 Bug 修复）
 
 ### 架构级改动：存储层从 OPFS 迁移到 File System Access API
