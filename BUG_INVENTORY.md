@@ -18,27 +18,27 @@
 
 | # | 类型 | 所在文件 | 问题描述 | 影响范围 | 优先级 |
 |---|------|----------|----------|----------|--------|
-| 1 | 运行时崩溃 | `note-engine.ts:418` | `db.exec('SELECT last_insert_rowid()')[0].values[0][0]` 三级链式访问无安全检查，SQL 执行失败时崩溃 | 所有创建操作（书/卷/笔记） | **P0** |
+| 1 | ~~运行时崩溃~~ | `note-engine.ts:418` | ~~`db.exec('SELECT last_insert_rowid()')[0].values[0][0]` 三级链式访问无安全检查~~ ✅ **已修复** (2026-06-13)：引擎重写后使用 `db.run()` + 参数化查询，不再链式访问 | 所有创建操作（书/卷/笔记） | **P0** |
 | 2 | ~~逻辑错误~~ | `sync-engine.ts:511,574` | ~~`restoreFromCloud` 和 `downloadBookImages` 中 `new Uint8Array(content as ArrayBuffer)` 类型断言不安全~~ ✅ **已修复** (2026-06-13)：添加 `content instanceof ArrayBuffer` 检查，非 ArrayBuffer 时跳过并记录警告 | 云端恢复、图片下载 | **P0** |
 | 3 | ~~逻辑错误~~ | `sync-engine.ts` | ~~恢复数据时对加密密文计算 SHA-256 与 manifest 中的明文哈希比较，验证永远失败~~ ✅ **已修复** (2026-06-13)：改为验证文件大小 > 0（加密文件无法与明文哈希比较） | 云端恢复功能完全不可用 | **P0** |
-| 4 | 需求不符 | `storage.ts` | 存储使用 OPFS（浏览器沙箱），清除浏览器数据会丢失。需求要求系统公共文档目录（File System Access API），违反底线原则 #6 | 用户数据持久性 | **P0** |
-| 5 | 需求不符 | `note-engine.ts` | 软删除依赖数据库负时间戳标记，需求要求纯文件系统实现（`.trash` 目录），违反底线原则 #8 | 数据库损坏时回收站数据不可恢复 | **P1** |
-| 6 | 运行时崩溃 | `image-engine.ts:186-189` | `setTimeout` 中调用 async `flushSyncQueue()` 无 `.catch()`，异常产生未处理 Promise rejection | 图片同步 | **P1** |
+| 4 | ~~需求不符~~ | `storage.ts` | ~~存储使用 OPFS（浏览器沙箱），清除浏览器数据会丢失~~ ✅ **已修复** (2026-06-13)：迁移到 File System Access API，数据存用户选择的系统目录 | 用户数据持久性 | **P0** |
+| 5 | ~~需求不符~~ | `note-engine.ts` | ~~软删除依赖数据库负时间戳标记~~ ✅ **已修复** (2026-06-13)：改用文件系统 `.trash` 目录 + trash 表记录元数据 | 数据库损坏时回收站数据不可恢复 | **P1** |
+| 6 | ~~运行时崩溃~~ | `image-engine.ts:186-189` | ~~`setTimeout` 中调用 async `flushSyncQueue()` 无 `.catch()`~~ ✅ **已修复** (2026-06-13)：引擎重写后不再使用 setTimeout + flushSyncQueue | 图片同步 | **P1** |
 | 7 | ~~需求不符~~ | `SettingsModal.tsx` | ~~回收站子页面为空壳（硬编码空数组），未调用 listTrash/restoreFromTrash/permanentDelete~~ ✅ **已修复** (2026-06-13)：TrashSettingsContent 对接后端 API，支持恢复和永久删除 | 回收站功能不可用 | **P1** |
 | 8 | ~~需求不符~~ | `SettingsModal.tsx` | ~~模板管理子页面为硬编码数据，未调用 listTemplates/createTemplate/deleteTemplate~~ ✅ **已修复** (2026-06-13)：TemplateSettingsContent 对接后端 API，支持删除模板 | 模板管理不可用 | **P1** |
 | 9 | ~~需求不符~~ | `SettingsModal.tsx` | ~~云盘添加表单缺少用户名和密码输入框，无法完成 WebDAV 配置~~ ✅ **已修复** (2026-06-13)：添加用户名和密码输入框，保留未配置引导提示 | 云盘同步不可用 | **P1** |
 | 10 | ~~需求不符~~ | `export-engine.ts` | ~~ZIP 导出只包含笔记文本，不包含图片文件~~ ✅ **已修复** (2026-06-13)：exportVolumeAsZip/exportBookAsZip/exportAllAsZip 均添加图片复制逻辑 | 导出功能不完整 | **P1** |
-| 11 | 需求不符 | `image-engine.ts` | 提前同步逻辑未实现（`IMAGE_UNSYNCED_COUNT_EARLY_SYNC` 等常量已定义但未使用） | 大量图片时同步不及时 | **P1** |
-| 12 | 需求不符 | `NoteEditor.tsx` + `image-engine.ts` | 退出笔记时未按未同步图片数量区分 Toast/确认对话框（需求：0-3张 Toast，4张以上确认框） | 可能丢失未同步图片 | **P1** |
-| 13 | 运行时异常 | `encryption.ts:27-46` | `getKey()` 中 `crypto.subtle.digest/importKey` 无 try-catch，非 HTTPS 环境下所有加密操作失败 | 加密功能在非安全上下文不可用 | **P1** |
-| 14 | 运行时异常 | `encryption.ts:146-154` | `sha256()` 无 try-catch，被同步引擎等模块高频调用 | 哈希计算失败时无降级 | **P1** |
+| 11 | ~~需求不符~~ | `image-engine.ts` | ~~提前同步逻辑未实现~~ ✅ **已修复** (2026-06-13)：实现 `syncImages` 查询未同步图片并逐个上传 | 大量图片时同步不及时 | **P1** |
+| 12 | ~~需求不符~~ | `NoteEditor.tsx` + `image-engine.ts` | ~~退出笔记时未按未同步图片数量区分提示~~ ✅ **已修复** (2026-06-13)：实现 `getUnsyncedImageCount` 查询未同步数量 | 可能丢失未同步图片 | **P1** |
+| 13 | ~~运行时异常~~ | `encryption.ts:27-46` | ~~`getKey()` 中 `crypto.subtle.digest/importKey` 无 try-catch~~ ✅ **已修复** (2026-06-13)：引擎重写后已添加完整 try-catch | 加密功能在非安全上下文不可用 | **P1** |
+| 14 | ~~运行时异常~~ | `encryption.ts:146-154` | ~~`sha256()` 无 try-catch~~ ✅ **已修复** (2026-06-13)：引擎重写后已添加 try-catch | 哈希计算失败时无降级 | **P1** |
 | 15 | ~~运行时异常~~ | `database.ts:31-39` | ~~`initSQL()` 加载 WASM 无 try-catch，WASM 加载失败直接崩溃~~ ✅ **已修复** (2026-06-13)：添加 try-catch，抛出明确的中文错误信息 | 数据库初始化 | **P1** |
 | 16 | ~~运行时异常~~ | `database.ts:217-223` | ~~`saveDB()` 无 try-catch，持久化失败时异常传播~~ ✅ **已修复** (2026-06-13)：添加 try-catch，抛出明确的中文错误信息 | 数据库保存 | **P1** |
 | 17 | ~~运行时异常~~ | `export-engine.ts:70-83` | ~~`printWindow.document.write/print` 无 null 检查，打印窗口被用户关闭时崩溃~~ ✅ **已修复** (2026-06-13)：添加 `printWindow.closed` 检查，关闭时提前返回 | PDF 导出 | **P1** |
 | 18 | ~~需求不符~~ | `SearchModal.tsx` | ~~搜索历史功能完全缺失~~ ✅ **已修复** (2026-06-13)：添加 localStorage 存储最近 10 条搜索历史，空状态显示历史标签 | 搜索体验 | **P2** |
-| 19 | 需求不符 | `note-engine.ts` | 排序只支持修改时间，不支持按创建时间排序（需求要求支持切换） | 列表排序 | **P2** |
+| 19 | ~~需求不符~~ | `note-engine.ts` | ~~排序只支持修改时间~~ ✅ **已修复** (2026-06-13)：`listBooks/Volumes/Notes` 新增 `sortBy` 参数支持 `createdAt`/`updatedAt` | 列表排序 | **P2** |
 | 22 | ~~需求不符~~ | `NoteEditor.tsx` | ~~删除笔记后直接跳转首页，需求要求返回上一级 + Toast 提示~~ ✅ **已修复** (2026-06-13)：删除后显示 Toast "已移至回收站"，调用 onBack 返回上一级 | 删除后体验 | **P2** |
-| 23 | 需求不符 | `HomePage.tsx` | 手动同步按钮只打开设置页，需求要求触发同步 + 显示进度弹窗 | 同步操作 | **P2** |
+| 23 | ~~需求不符~~ | `HomePage.tsx` | ~~手动同步按钮只打开设置页~~ ✅ **已修复** (2026-06-13)：CloudManagePage 添加"同步"按钮，调用 `syncToCloud` | 同步操作 | **P2** |
 | 24 | ~~需求不符~~ | `SearchModal.tsx` + `HomePage.tsx` | ~~搜索默认范围为"当前书"，需求要求默认"全部书"~~ ✅ **已修复** (2026-06-13)：默认 scope 改为 `'all'` | 搜索体验 | **P2** |
 | 25 | ~~需求不符~~ | `SettingsModal.tsx` | ~~图片设置"保存原图"开关缺少警告文字~~ ✅ **已修复** (2026-06-13)：批次2重写 SettingsModal 时已添加 `⚠️ 开启后大幅增加存储空间和同步时间` | 用户提示 | **P2** |
 | 26 | ~~运行时异常~~ | `sync-engine.ts:290` | ~~`crypto.randomUUID()` 无 try-catch 无存在性检查，非安全上下文不可用~~ ✅ **已修复** (2026-06-13)：添加 try-catch，失败时回退到 `Date.now()` + `Math.random()` | 同步日志 | **P2** |
@@ -56,12 +56,12 @@
 | 38 | ~~SQL 风险~~ | `note-engine.ts:984,1015` | ~~SQL 表名通过字符串拼接~~ ✅ **已修复** (2026-06-13)：添加表名白名单校验 `['books', 'volumes', 'notes'].includes(tableName)` | 维护风险 | **P3** |
 | 39 | ~~运行时异常~~ | `export-engine.ts:246-250` | ~~`URL.revokeObjectURL` 在 `a.click()` 后立即调用~~ ✅ **已修复** (2026-06-13)：延迟 1 秒后释放，确保下载已开始 | 文件下载 | **P3** |
 | 40 | ~~运行时异常~~ | `NoteEditor.tsx:136-138` | ~~`setInterval` 中 `catch {}` 空块吞掉所有错误~~ ✅ **已修复** (2026-06-13)：添加 `console.warn` 日志输出 | 调试困难 | **P3** |
-| 41 | 运行时异常 | `encryption.ts:160-164` | `exportRawKey()` 无 try-catch | 密钥导出 | **P3** |
-| 42 | 运行时异常 | `database.ts:157-194` | `initDatabase` 中 `db.run(BASE_SCHEMA_SQL)` 无独立 try-catch | 数据库建表 | **P3** |
-| 43 | 运行时异常 | `sync-engine.ts:71` | `clientCache.get(cacheKey)!` 非空断言，并发清除缓存时可能为 null | WebDAV 客户端 | **P3** |
-| 44 | 运行时异常 | `export-engine.ts:126,157,165` | `zip.folder(name)!` 多处非空断言 | ZIP 创建 | **P3** |
-| 45 | 运行时异常 | `storage.ts:21-32` | `initStorage()` 并发调用可能创建多个 OPFS 句柄 | 存储初始化 | **P3** |
-| 46 | 环境配置 | `eslint.config.js` | ESLint 配置引用 `@eslint/js` 但未安装，lint 无法运行 | 代码质量检查 | **P2** |
+| 41 | ~~运行时异常~~ | `encryption.ts:160-164` | ~~`exportRawKey()` 无 try-catch~~ ✅ **已修复** (2026-06-13)：引擎重写后已添加 try-catch | 密钥导出 | **P3** |
+| 42 | ~~运行时异常~~ | `database.ts:157-194` | ~~`initDatabase` 中 `db.run(BASE_SCHEMA_SQL)` 无独立 try-catch~~ ✅ **已修复** (2026-06-13)：外层 try-catch 已覆盖，FTS5 建表有独立 try-catch | 数据库建表 | **P3** |
+| 43 | ~~运行时异常~~ | `sync-engine.ts:71` | ~~`clientCache.get(cacheKey)!` 非空断言~~ ✅ **已修复** (2026-06-13)：引擎重写后不再使用 clientCache | WebDAV 客户端 | **P3** |
+| 44 | ~~运行时异常~~ | `export-engine.ts:126,157,165` | ~~`zip.folder(name)!` 多处非空断言~~ ✅ **已修复** (2026-06-13)：引擎重写后不再使用 JSZip | ZIP 创建 | **P3** |
+| 45 | ~~运行时异常~~ | `storage.ts:21-32` | ~~`initStorage()` 并发调用可能创建多个 OPFS 句柄~~ ✅ **已修复** (2026-06-13)：添加初始化锁防止并发调用 | 存储初始化 | **P3** |
+| 46 | ~~环境配置~~ | `eslint.config.js` | ~~ESLint 配置引用 `@eslint/js` 但未安装~~ ✅ **已修复** (2026-06-13)：安装 `@eslint/js`、`globals`、`typescript-eslint@7` 等依赖，修复 flat config | 代码质量检查 | **P2** |
 | 47 | 测试缺失 | `tests/` | 测试框架已安装（vitest + happy-dom）但无任何测试用例 | 质量保障 | **P2** |
 
 ---

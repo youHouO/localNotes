@@ -14,6 +14,9 @@ let cachedModule: typeof import('./storage-fsaa') | typeof import('./storage-opf
 /** 降级原因，用于提示用户 */
 let fallbackReason: string | null = null
 
+/** 初始化锁，防止并发调用 */
+let initPromise: Promise<void> | null = null
+
 /**
  * 获取当前使用的后端名称
  */
@@ -31,8 +34,21 @@ export function getFallbackReason(): string | null {
 /**
  * 初始化存储层
  * 优先尝试 FSA API，失败时降级到 OPFS 并记录原因
+ * 使用初始化锁防止并发调用
  */
 export async function initStorage(): Promise<void> {
+  if (initPromise) return initPromise
+
+  initPromise = doInit()
+  try {
+    return await initPromise
+  } catch (err) {
+    initPromise = null
+    throw err
+  }
+}
+
+async function doInit(): Promise<void> {
   // 1. 统一先尝试 FSA API
   if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
     try {
