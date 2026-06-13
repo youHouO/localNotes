@@ -5,6 +5,8 @@
 
 import { isStorageReady, writeFile, readFile, deleteFile, listDirectory } from './storage'
 import { getDB } from './database'
+import { uploadFile } from './sync-engine'
+import type { SyncConfig } from './sync-engine'
 import imageCompression from 'browser-image-compression'
 
 export interface ImageInfo {
@@ -203,8 +205,10 @@ export function revokeImageUrl(url: string): void {
 /**
  * 提前同步图片（在退出笔记前调用）
  * 检查未同步图片并上传到云盘
+ * @param noteId 笔记ID
+ * @param config 可选的同步配置，不传则只标记本地状态（用于离线模式）
  */
-export async function syncImages(noteId: string): Promise<void> {
+export async function syncImages(noteId: string, config?: SyncConfig): Promise<void> {
   assertStorageReady()
   const db = getDB()
 
@@ -230,8 +234,16 @@ export async function syncImages(noteId: string): Promise<void> {
       const imageData = await loadImage(img.bookId, img.id)
       if (!imageData) continue
 
-      // 占位：实际应调用云盘上传 API
-      // await uploadToCloud(img.bookId, img.webpName, imageData)
+      // 如果有同步配置，实际上传到云盘
+      if (config) {
+        const localPath = `Books/${img.bookId}/Assets/Images/${img.webpName}`
+        const remoteSubPath = `images/${img.webpName}`
+        const uploaded = await uploadFile(config, localPath, remoteSubPath)
+        if (!uploaded) {
+          console.warn(`图片上传失败，跳过标记: ${img.id}`)
+          continue // 上传失败不标记为已同步
+        }
+      }
 
       // 标记为已同步
       db.run(`UPDATE images SET synced = 1, synced_at = ? WHERE id = ?`, [now(), img.id])

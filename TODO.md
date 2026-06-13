@@ -75,7 +75,7 @@
 ## 待完成
 
 ### 功能完善
-- [ ] image-engine.ts: `syncImages` 实际调用云盘上传 API（需 sync-engine 集成）
+- [x] image-engine.ts: `syncImages` 实际调用云盘上传 API（sync-engine 集成 uploadFile）
 
 ### 兼容性
 - [ ] Chrome/Safari/Firefox 移动端测试

@@ -48,6 +48,55 @@ function getRemoteBasePath(config: SyncConfig): string {
 }
 
 /**
+ * 上传单个文件到云盘（供 image-engine 调用）
+ * @param config 同步配置
+ * @param localPath 本地文件路径（如 Books/{bookId}/Assets/Images/{imageId}.webp）
+ * @param remoteSubPath 远程子路径（如 images/{imageId}.webp）
+ * @returns 是否上传成功
+ */
+export async function uploadFile(
+  config: SyncConfig,
+  localPath: string,
+  remoteSubPath: string,
+): Promise<boolean> {
+  assertStorageReady()
+
+  try {
+    const client = createWebDAVClient(config)
+    const basePath = getRemoteBasePath(config)
+    const remotePath = `${basePath}/${remoteSubPath}`
+
+    // 读取本地文件
+    const content = await readFile(localPath)
+    if (content === null) {
+      console.warn(`上传跳过：本地文件不存在 ${localPath}`)
+      return false
+    }
+
+    // 确保远程目录存在
+    const dirParts = remotePath.split('/').slice(0, -1)
+    for (let d = 2; d <= dirParts.length; d++) {
+      const dirPath = dirParts.slice(0, d).join('/')
+      try {
+        await client.createDirectory(dirPath)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (!message.includes('409')) {
+          throw new Error(`创建远程目录失败: ${message}`)
+        }
+      }
+    }
+
+    // 上传文件
+    await client.putFileContents(remotePath, content)
+    return true
+  } catch (err) {
+    console.warn(`上传文件失败: ${localPath}`, err)
+    return false
+  }
+}
+
+/**
  * 测试云盘连接
  */
 export async function testConnection(config: SyncConfig): Promise<SyncStatus> {
