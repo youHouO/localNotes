@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS images (
   note_id TEXT,
   local_path TEXT NOT NULL,
   synced INTEGER NOT NULL DEFAULT 0,
+  synced_at INTEGER,
   created_at INTEGER NOT NULL,
   size INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,

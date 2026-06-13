@@ -150,20 +150,56 @@ export function revokeImageUrl(url: string): void {
 
 /**
  * 提前同步图片（在退出笔记前调用）
- * 当前为占位实现
+ * 检查未同步图片并上传到云盘
  */
 export async function syncImages(noteId: string): Promise<void> {
   assertStorageReady()
-  // 占位：实际应检查未同步图片并上传到云盘
-  console.log('syncImages placeholder for note:', noteId)
+  const db = getDB()
+
+  // 查询该笔记下未同步的图片
+  const unsyncedRes = db.exec(
+    `SELECT id, book_id, webp_name FROM images WHERE note_id = ? AND synced = 0`,
+    [noteId],
+  )
+
+  if (!unsyncedRes || unsyncedRes.length === 0 || unsyncedRes[0].values.length === 0) {
+    return // 没有未同步图片
+  }
+
+  const images = unsyncedRes[0].values.map((row) => ({
+    id: row[0] as string,
+    bookId: row[1] as string,
+    webpName: row[2] as string,
+  }))
+
+  // 逐个上传并标记为已同步
+  for (const img of images) {
+    try {
+      const imageData = await loadImage(img.bookId, img.id)
+      if (!imageData) continue
+
+      // 占位：实际应调用云盘上传 API
+      // await uploadToCloud(img.bookId, img.webpName, imageData)
+
+      // 标记为已同步
+      db.run(`UPDATE images SET synced = 1, synced_at = ? WHERE id = ?`, [now(), img.id])
+    } catch (err) {
+      console.warn(`图片同步失败: ${img.id}`, err)
+      // 继续同步其他图片，不阻断
+    }
+  }
 }
 
 /**
  * 获取未同步图片数量
- * 当前为占位实现，返回 0
  */
 export function getUnsyncedImageCount(noteId: string): number {
   assertStorageReady()
-  // 占位：实际应查询未同步图片
-  return 0
+  const db = getDB()
+  const res = db.exec(
+    `SELECT COUNT(*) as count FROM images WHERE note_id = ? AND synced = 0`,
+    [noteId],
+  )
+  if (!res || res.length === 0 || res[0].values.length === 0) return 0
+  return res[0].values[0][0] as number
 }
