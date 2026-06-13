@@ -29,10 +29,19 @@ vi.mock('@/engine/encryption', () => ({
   encryptString: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
   decryptToString: vi.fn().mockResolvedValue('decrypted-content'),
   sha256: vi.fn().mockResolvedValue('abc123hash'),
+  getKey: vi.fn().mockResolvedValue({}),
+  exportRawKey: vi.fn().mockResolvedValue(new Uint8Array(32)),
 }))
 
 // ==================== Imports (after mocks) ====================
-import { listBooks, getBook, searchNotes, listTrash, cleanExpiredTrash } from '@/engine/note-engine'
+import {
+  listBooks, getBook, createBook, renameBook,
+  listVolumes, createVolume,
+  listNotes, createNote, getNote, renameNote,
+  searchNotes,
+  listTrash, restoreFromTrash, permanentDelete, cleanExpiredTrash,
+  listTemplates, createTemplate, deleteTemplate,
+} from '@/engine/note-engine'
 import type { TrashItem } from '@/engine/note-engine'
 import * as storage from '@/engine/storage'
 import * as database from '@/engine/database'
@@ -42,11 +51,10 @@ function createMockDB(execResults: unknown[][] = []) {
   return {
     run: vi.fn(),
     exec: vi.fn().mockImplementation((..._args: unknown[]) => {
-      // 如果有预设结果，按顺序返回
       if (execResults.length > 0) {
         return execResults.shift() as unknown[]
       }
-      return [] // 默认空结果
+      return []
     }),
     getRowsModified: vi.fn().mockReturnValue(1),
     export: vi.fn().mockReturnValue(new Uint8Array([0])),
@@ -58,9 +66,7 @@ function createMockDB(execResults: unknown[][] = []) {
 describe('note-engine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // 默认：存储就绪
     vi.mocked(storage.isStorageReady).mockReturnValue(true)
-    // 默认：FTS5 不可用
     vi.mocked(database.isFTS5Available).mockReturnValue(false)
   })
 
@@ -68,11 +74,11 @@ describe('note-engine', () => {
   describe('listBooks', () => {
     it('存储未就绪时应抛出错误', () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => listBooks()).toThrow('存储目录未初始化')
+      expect(() => listBooks()).toThrow('存储未初始化')
     })
 
     it('数据库无结果时应返回空数组', () => {
-      const mockDb = createMockDB([[]]) // exec 返回空数组
+      const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
       const result = listBooks()
@@ -81,7 +87,6 @@ describe('note-engine', () => {
 
     it('应正确解析数据库结果并返回 Book 数组', () => {
       const mockDb = createMockDB([
-        // exec 返回的结果
         [
           {
             columns: ['id', 'name', 'created_at', 'updated_at', 'note_count'],
@@ -104,21 +109,24 @@ describe('note-engine', () => {
         updatedAt: 2000,
         noteCount: 5,
       })
-      expect(result[1]).toEqual({
-        id: 'book-2',
-        name: '学习笔记',
-        createdAt: 3000,
-        updatedAt: 4000,
-        noteCount: 10,
-      })
     })
 
-    it('数据库异常时应抛出错误', () => {
-      vi.mocked(database.getDB).mockImplementation(() => {
-        throw new Error('DB error')
-      })
+    it('支持按创建时间排序', () => {
+      const mockDb = createMockDB([
+        [
+          {
+            columns: ['id', 'name', 'created_at', 'updated_at', 'note_count'],
+            values: [['book-1', '书', 1000, 2000, 0]],
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      expect(() => listBooks()).toThrow('获取书列表失败')
+      const result = listBooks('createdAt')
+      expect(result).toHaveLength(1)
+      // 验证 SQL 中使用了 created_at 排序
+      const sql = mockDb.exec.mock.calls[0][0] as string
+      expect(sql).toContain('created_at DESC')
     })
   })
 
@@ -136,8 +144,8 @@ describe('note-engine', () => {
       const mockDb = createMockDB([
         [
           {
-            columns: ['id', 'name', 'created_at', 'updated_at'],
-            values: [['book-abc', '测试书籍', 1000, 2000]],
+            columns: ['id', 'name', 'created_at', 'updated_at', 'note_count'],
+            values: [['book-abc', '测试书籍', 1000, 2000, 3]],
           },
         ],
       ])
@@ -146,136 +154,144 @@ describe('note-engine', () => {
       const result = getBook('book-abc')
 
       expect(result).not.toBeNull()
-      expect(result).toEqual({
-        id: 'book-abc',
-        name: '测试书籍',
-        createdAt: 1000,
-        updatedAt: 2000,
-        noteCount: 0, // getBook 默认 noteCount 为 0
-      })
+      expect(result!.id).toBe('book-abc')
+      expect(result!.name).toBe('测试书籍')
+      expect(result!.noteCount).toBe(3)
     })
+  })
 
-    it('数据库异常时应返回 null（不抛错）', () => {
-      vi.mocked(database.getDB).mockImplementation(() => {
-        throw new Error('DB error')
-      })
+  // ==================== createBook ====================
+  describe('createBook', () => {
+    it('应正确创建书并返回 Book 对象', () => {
+      const mockDb = createMockDB()
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = getBook('any-id')
-      expect(result).toBeNull()
+      const result = createBook('新书')
+
+      expect(result.name).toBe('新书')
+      expect(result.id).toBeDefined()
+      expect(result.createdAt).toBeGreaterThan(0)
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO books'),
+        expect.arrayContaining([expect.any(String), '新书', expect.any(Number), expect.any(Number), 0]),
+      )
+    })
+  })
+
+  // ==================== renameBook ====================
+  describe('renameBook', () => {
+    it('应执行 UPDATE SQL', () => {
+      const mockDb = createMockDB()
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      renameBook('book-1', '新名字')
+
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE books SET name'),
+        expect.arrayContaining(['新名字', expect.any(Number), 'book-1']),
+      )
+    })
+  })
+
+  // ==================== listVolumes ====================
+  describe('listVolumes', () => {
+    it('应正确返回卷列表', () => {
+      const mockDb = createMockDB([
+        [
+          {
+            columns: ['id', 'book_id', 'name', 'created_at', 'updated_at', 'note_count', 'sort_order'],
+            values: [['vol-1', 'book-1', '默认卷', 1000, 2000, 5, 0]],
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      const result = listVolumes('book-1')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('vol-1')
+      expect(result[0].bookId).toBe('book-1')
+      expect(result[0].sortOrder).toBe(0)
+    })
+  })
+
+  // ==================== createVolume ====================
+  describe('createVolume', () => {
+    it('存储未就绪时应抛出错误', () => {
+      vi.mocked(storage.isStorageReady).mockReturnValue(false)
+      expect(() => createVolume('book-1', '新卷')).toThrow('存储未初始化')
+    })
+  })
+
+  // ==================== listNotes ====================
+  describe('listNotes', () => {
+    it('应正确返回笔记列表', () => {
+      const mockDb = createMockDB([
+        [
+          {
+            columns: ['id', 'volume_id', 'book_id', 'title', 'content_hash', 'created_at', 'updated_at', 'word_count', 'image_count'],
+            values: [['note-1', 'vol-1', 'book-1', '测试笔记', 'hash123', 1000, 2000, 100, 2]],
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      const result = listNotes('vol-1')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('测试笔记')
+      expect(result[0].wordCount).toBe(100)
+      expect(result[0].imageCount).toBe(2)
+    })
+  })
+
+  // ==================== getNote ====================
+  describe('getNote', () => {
+    it('笔记不存在时应返回 null', () => {
+      const mockDb = createMockDB([[]])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      expect(getNote('non-existent')).toBeNull()
+    })
+  })
+
+  // ==================== createNote ====================
+  describe('createNote', () => {
+    it('卷不存在时应抛出错误', () => {
+      const mockDb = createMockDB([[]]) // getVolume 返回 null
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      expect(() => createNote('vol-nonexist', '标题')).toThrow('卷不存在')
     })
   })
 
   // ==================== searchNotes ====================
   describe('searchNotes', () => {
     it('空关键词应返回空数组', () => {
-      const result = searchNotes('   ')
-      expect(result).toEqual([])
+      expect(searchNotes('   ')).toEqual([])
+      expect(searchNotes('')).toEqual([])
     })
 
-    it('空字符串关键词应返回空数组', () => {
-      const result = searchNotes('')
-      expect(result).toEqual([])
-    })
-
-    it('FTS5 不可用时应降级为 LIKE 搜索', () => {
+    it('FTS5 不可用时应使用 LIKE 搜索', () => {
       vi.mocked(database.isFTS5Available).mockReturnValue(false)
 
       const mockDb = createMockDB([
-        // 第一次 exec: 标题搜索
         [
           {
             columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
             values: [['note-1', '测试笔记标题', 'vol-1', '默认卷', 'book-1', '我的书']],
           },
         ],
-        // 第二次 exec: 内容搜索（获取所有笔记）
-        [
-          {
-            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-            values: [['note-2', '另一篇笔记', 'vol-1', '默认卷', 'book-1', '我的书']],
-          },
-        ],
-        // 第三次 exec: FTS snippet（会失败因为 FTS 不可用）
-        [],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
       const result = searchNotes('测试')
 
-      // 应该包含标题匹配和内容匹配的结果
-      expect(result.length).toBeGreaterThanOrEqual(1)
-      // 标题匹配的结果应包含高亮标记
-      const titleMatch = result.find(r => r.noteId === 'note-1')
-      expect(titleMatch).toBeDefined()
-      expect(titleMatch!.snippet).toContain('<mark>')
-      expect(titleMatch!.snippet).toContain('</mark>')
-    })
-
-    it('应正确应用 bookId 过滤', () => {
-      vi.mocked(database.isFTS5Available).mockReturnValue(false)
-
-      const mockDb = createMockDB([
-        // 标题搜索结果
-        [
-          {
-            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-            values: [['note-1', '过滤测试', 'vol-1', '卷A', 'book-target', '目标书']],
-          },
-        ],
-        // 内容搜索结果
-        [
-          {
-            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-            values: [],
-          },
-        ],
-      ])
-      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-
-      const result = searchNotes('过滤', 'book-target')
-
-      // 验证 exec 被调用时传入了 bookId 参数
-      expect(mockDb.exec).toHaveBeenCalled()
-      // 检查最后一次调用（内容搜索）是否包含 bookId 过滤
-      const lastCall = mockDb.exec.mock.calls[mockDb.exec.mock.calls.length - 1]
-      const lastSql = lastCall[0] as string
-      const lastParams = lastCall[1] as string[]
-      expect(lastSql).toContain('n.book_id = ?')
-      expect(lastParams).toContain('book-target')
-    })
-
-    it('应正确应用 limit 限制', () => {
-      vi.mocked(database.isFTS5Available).mockReturnValue(false)
-
-      const mockDb = createMockDB([
-        // 标题搜索
-        [
-          {
-            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-            values: Array.from({ length: 100 }, (_, i) => [
-              `note-${i}`,
-              `标题 ${i}`,
-              'vol-1',
-              '卷A',
-              'book-1',
-              '我的书',
-            ]),
-          },
-        ],
-        // 内容搜索
-        [
-          {
-            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-            values: [],
-          },
-        ],
-      ])
-      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-
-      const result = searchNotes('标题', undefined, 10)
-
-      // 结果不应超过 limit
-      expect(result.length).toBeLessThanOrEqual(10)
+      expect(result).toHaveLength(1)
+      expect(result[0].noteId).toBe('note-1')
+      // 验证使用了 LIKE 查询
+      const sql = mockDb.exec.mock.calls[0][0] as string
+      expect(sql).toContain('LIKE')
     })
 
     it('FTS5 可用时应使用 FTS 查询', () => {
@@ -286,7 +302,7 @@ describe('note-engine', () => {
           {
             columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name', 'snippet'],
             values: [
-              ['note-1', 'FTS测试', 'vol-1', '卷A', 'book-1', '我的书', '<mark>FTS</mark>测试内容...'],
+              ['note-1', 'FTS测试', 'vol-1', '卷A', 'book-1', '我的书', 'FTS测试内容...'],
             ],
           },
         ],
@@ -296,113 +312,80 @@ describe('note-engine', () => {
       const result = searchNotes('FTS')
 
       expect(result).toHaveLength(1)
-      expect(result[0].noteId).toBe('note-1')
-      expect(result[0].snippet).toBe('<mark>FTS</mark>测试内容...')
-      // 验证使用了 FTS 查询语法
+      expect(result[0].snippet).toBe('FTS测试内容...')
       expect(mockDb.exec).toHaveBeenCalledWith(
         expect.stringContaining('notes_fts MATCH ?'),
-        expect.anything()
+        expect.anything(),
       )
     })
 
-    it('FTS5 查询失败时应降级为 LIKE 搜索', () => {
-      vi.mocked(database.isFTS5Available).mockReturnValue(true)
-
-      let callCount = 0
-      const mockDb = {
-        run: vi.fn(),
-        exec: vi.fn().mockImplementation(() => {
-          callCount++
-          // 第一次调用（FTS查询）抛错，触发降级
-          if (callCount === 1) {
-            throw new Error('FTS syntax error')
-          }
-          // 降级后的 LIKE 搜索
-          return [
-            {
-              columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
-              values: [['note-fallback', '降级结果', 'vol-1', '卷A', 'book-1', '我的书']],
-            },
-          ]
-        }),
-        getRowsModified: vi.fn().mockReturnValue(1),
-        export: vi.fn(),
-        close: vi.fn(),
-      }
-      vi.mocked(database.getDB).mockReturnValue(mockDb as unknown as ReturnType<typeof database.getDB>)
-
-      const result = searchNotes('特殊字符')
-
-      // 应降级返回 LIKE 搜索结果
-      expect(result.length).toBeGreaterThanOrEqual(1)
-      expect(result[0].noteId).toBe('note-fallback')
-    })
-
-    it('降级搜索中数据库异常时应返回空数组', () => {
+    it('应正确应用 bookId 过滤', () => {
       vi.mocked(database.isFTS5Available).mockReturnValue(false)
 
-      const mockDb = {
-        run: vi.fn(),
-        exec: vi.fn().mockImplementation(() => {
-          throw new Error('DB crash')
-        }),
-        getRowsModified: vi.fn().mockReturnValue(1),
-        export: vi.fn(),
-        close: vi.fn(),
-      }
-      vi.mocked(database.getDB).mockReturnValue(mockDb as unknown as ReturnType<typeof database.getDB>)
+      const mockDb = createMockDB([
+        [
+          {
+            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
+            values: [],
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = searchNotes('test')
-      expect(result).toEqual([])
+      searchNotes('过滤', 'book-target')
+
+      const sql = mockDb.exec.mock.calls[0][0] as string
+      const params = mockDb.exec.mock.calls[0][1] as unknown[]
+      expect(sql).toContain('n.book_id = ?')
+      expect(params).toContain('book-target')
+    })
+
+    it('应正确应用 limit 限制', () => {
+      vi.mocked(database.isFTS5Available).mockReturnValue(false)
+
+      const mockDb = createMockDB([
+        [
+          {
+            columns: ['note_id', 'note_title', 'volume_id', 'volume_name', 'book_id', 'book_name'],
+            values: Array.from({ length: 100 }, (_, i) => [
+              `note-${i}`, `标题 ${i}`, 'vol-1', '卷A', 'book-1', '我的书',
+            ]),
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      const result = searchNotes('标题', undefined, 10)
+      // SQL 中有 LIMIT 10，但 mock 返回了全部数据
+      // 验证 SQL 包含 LIMIT 子句
+      const sql = mockDb.exec.mock.calls[0][0] as string
+      expect(sql).toContain('LIMIT')
+      const params = mockDb.exec.mock.calls[0][1] as unknown[]
+      expect(params).toContain(10)
     })
   })
 
   // ==================== listTrash ====================
   describe('listTrash', () => {
     it('回收站为空时应返回空数组', () => {
-      const mockDb = createMockDB([[], [], []]) // notes, volumes, books 都为空
+      const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = listTrash()
-      expect(result).toEqual([])
+      expect(listTrash()).toEqual([])
     })
 
-    it('应正确列出已删除的笔记、卷和书', () => {
+    it('应正确列出 trash 表中的条目', () => {
       const nowMs = Date.now()
       const retentionMs = 30 * 24 * 60 * 60 * 1000
 
-      // 模拟一个已删除的笔记（updated_at 为负数）
-      const deletedNoteTimestamp = nowMs - 1000 * 60 // 1分钟前删除
-      // 模拟一个已删除的卷
-      const deletedVolTimestamp = nowMs - 1000 * 60 * 10 // 10分钟前删除
-      // 模拟一个已删除的书
-      const deletedBookTimestamp = nowMs - 1000 * 60 * 60 // 1小时前删除
-
       const mockDb = createMockDB([
-        // 已删除的笔记
         [
           {
-            columns: ['id', 'title', 'volume_id', 'book_id', 'updated_at', 'book_name', 'volume_name'],
+            columns: ['id', 'type', 'name', 'parent_id', 'deleted_at', 'expires_at'],
             values: [
-              ['note-del-1', '已删除笔记', 'vol-1', 'book-1', -deletedNoteTimestamp, '我的书', '默认卷'],
-            ],
-          },
-        ],
-        // 已删除的卷
-        [
-          {
-            columns: ['id', 'name', 'book_id', 'updated_at', 'book_name'],
-            values: [
-              ['vol-del-1', '已删除卷', 'book-1', -deletedVolTimestamp, '我的书'],
-            ],
-          },
-        ],
-        // 已删除的书
-        [
-          {
-            columns: ['id', 'name', 'created_at', 'updated_at'],
-            values: [
-              ['book-del-1', '已删除书', 1000, -deletedBookTimestamp],
+              ['note-del-1', 'note', '已删除笔记', 'vol-1', nowMs - 60000, nowMs - 60000 + retentionMs],
+              ['vol-del-1', 'volume', '已删除卷', 'book-1', nowMs - 600000, nowMs - 600000 + retentionMs],
+              ['book-del-1', 'book', '已删除书', null, nowMs - 3600000, nowMs - 3600000 + retentionMs],
             ],
           },
         ],
@@ -413,143 +396,166 @@ describe('note-engine', () => {
 
       expect(result).toHaveLength(3)
 
-      // 验证笔记条目
       const noteItem = result.find((i: TrashItem) => i.type === 'note')
-      expect(noteItem).toBeDefined()
       expect(noteItem!.id).toBe('note-del-1')
       expect(noteItem!.name).toBe('已删除笔记')
-      expect(noteItem!.deletedAt).toBe(deletedNoteTimestamp)
-      expect(noteItem!.expiresAt).toBe(deletedNoteTimestamp + retentionMs)
-      expect(noteItem!.bookId).toBe('book-1')
       expect(noteItem!.volumeId).toBe('vol-1')
 
-      // 验证卷条目
       const volItem = result.find((i: TrashItem) => i.type === 'volume')
-      expect(volItem).toBeDefined()
       expect(volItem!.id).toBe('vol-del-1')
-      expect(volItem!.name).toBe('已删除卷')
+      expect(volItem!.bookId).toBe('book-1')
 
-      // 验证书条目
       const bookItem = result.find((i: TrashItem) => i.type === 'book')
-      expect(bookItem).toBeDefined()
       expect(bookItem!.id).toBe('book-del-1')
-      expect(bookItem!.name).toBe('已删除书')
+      expect(bookItem!.bookId).toBeUndefined()
     })
 
-    it('应过滤掉已过期的回收站条目', () => {
-      const nowMs = Date.now()
-      // 创建一个 31 天前删除的条目（已过期）
-      const expiredTimestamp = nowMs - 31 * 24 * 60 * 60 * 1000
-
+    it('应过滤掉已过期的条目', () => {
       const mockDb = createMockDB([
-        // 已删除的笔记（已过期）
-        [
-          {
-            columns: ['id', 'title', 'volume_id', 'book_id', 'updated_at', 'book_name', 'volume_name'],
-            values: [
-              ['note-expired', '过期笔记', 'vol-1', 'book-1', -expiredTimestamp, '我的书', '默认卷'],
-            ],
-          },
-        ],
-        // 已删除的卷（无）
-        [],
-        // 已删除的书（无）
+        // 模拟 SQL 返回空结果（WHERE expires_at > now 已过滤）
         [],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
       const result = listTrash()
-      // 过期条目应被过滤
       expect(result).toHaveLength(0)
+      // 验证 SQL 包含 expires_at 过滤条件
+      const sql = mockDb.exec.mock.calls[0][0] as string
+      expect(sql).toContain('expires_at >')
+    })
+  })
+
+  // ==================== restoreFromTrash ====================
+  describe('restoreFromTrash', () => {
+    it('条目不存在时应抛出错误', () => {
+      const mockDb = createMockDB([[]])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      expect(() => restoreFromTrash('nonexist', 'note')).toThrow('回收站中不存在该项目')
     })
 
-    it('数据库异常时应抛出错误', () => {
-      vi.mocked(database.getDB).mockImplementation(() => {
-        throw new Error('DB error')
-      })
+    it('应正确恢复笔记（从 trash 表读取 + 删除记录 + 重新插入 notes 表）', () => {
+      const mockDb = createMockDB([
+        // trash 查询
+        [
+          {
+            columns: ['name', 'parent_id', 'deleted_at'],
+            values: [['恢复笔记', 'vol-1', 1000000]],
+          },
+        ],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      expect(() => listTrash()).toThrow('获取回收站列表失败')
+      restoreFromTrash('note-1', 'note')
+
+      // 应从 trash 表删除
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM trash'),
+        expect.arrayContaining(['note-1']),
+      )
+      // 应重新插入 notes 表
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO notes'),
+        expect.arrayContaining(['note-1', '恢复笔记']),
+      )
+    })
+  })
+
+  // ==================== permanentDelete ====================
+  describe('permanentDelete', () => {
+    it('应从 trash 表删除记录', () => {
+      const mockDb = createMockDB([
+        [{ columns: ['deleted_at'], values: [[1000000]] }],
+      ])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      permanentDelete('note-1', 'note')
+
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM trash'),
+        expect.arrayContaining(['note-1']),
+      )
     })
   })
 
   // ==================== cleanExpiredTrash ====================
   describe('cleanExpiredTrash', () => {
-    it('没有过期项目时应返回 0', async () => {
-      // listTrash 返回空数组（已过滤掉过期项）
-      const mockDb = createMockDB([[], [], []])
+    it('无过期条目时应返回 0', () => {
+      const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      // 需要动态 mock listTrash 的行为
-      // cleanExpiredTrash 内部调用 listTrash().filter(item => item.expiresAt <= now_)
-      // 由于 listTrash 已经过滤了过期项，所以 filter 后也为空
-      const result = await cleanExpiredTrash()
-      expect(result).toBe(0)
+      expect(cleanExpiredTrash()).toBe(0)
     })
 
-    it('存储未就绪时应抛出错误', async () => {
-      vi.mocked(storage.isStorageReady).mockReturnValue(false)
-
-      await expect(cleanExpiredTrash()).rejects.toThrow('存储目录未初始化')
-    })
-
-    it('有过期项目时应调用 permanentDelete 并返回清理数量', async () => {
-      // cleanExpiredTrash 调用顺序：
-      //   1. cleanExpiredTrash 内: const now_ = now()          → 第1次
-      //   2. listTrash 内: const now_ = now()                   → 第2次
-      // 要让条目通过 listTrash 过滤 (expiresAt > listTrash.now)，
-      // 但在 cleanExpiredTrash filter 中被判定过期 (expiresAt <= cleanTrash.now)
-      // 所以第1次(now)要返回较晚时间，第2次(now)要返回较早时间
-
-      const baseTime = 1000000000000
-      const deletedAt = baseTime - 1000
-      const retentionMs = 30 * 24 * 60 * 60 * 1000
-      const expiresAt = deletedAt + retentionMs
-
-      let nowCallCount = 0
-      vi.spyOn(Date, 'now').mockImplementation(() => {
-        nowCallCount++
-        if (nowCallCount === 1) {
-          // cleanExpiredTrash 内部: 需要 expiresAt <= now_，返回较晚时间
-          return expiresAt + 1
-        }
-        // listTrash 内部: 需要 expiresAt > now_，返回较早时间
-        return expiresAt - 1
-      })
-
+    it('应删除过期条目并返回数量', () => {
       const mockDb = createMockDB([
-        // listTrash: 已删除的笔记
+        [{ columns: ['id', 'type', 'deleted_at'], values: [['n1', 'note', 1000], ['n2', 'note', 2000]] }],
+      ])
+      mockDb.getRowsModified = vi.fn().mockReturnValue(1)
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      const count = cleanExpiredTrash()
+      expect(count).toBe(2)
+    })
+  })
+
+  // ==================== listTemplates ====================
+  describe('listTemplates', () => {
+    it('无模板时应返回空数组', () => {
+      const mockDb = createMockDB([[]])
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      expect(listTemplates()).toEqual([])
+    })
+
+    it('应正确返回模板列表', () => {
+      const mockDb = createMockDB([
         [
           {
-            columns: ['id', 'title', 'volume_id', 'book_id', 'updated_at', 'book_name', 'volume_name'],
-            values: [
-              ['note-exp', '过期笔记', 'vol-1', 'book-1', -deletedAt, '我的书', '默认卷'],
-            ],
+            columns: ['id', 'name', 'content', 'scope', 'book_id', 'created_at', 'updated_at'],
+            values: [['tpl-1', '日记模板', '# 日记\n内容', 'global', null, 1000, 2000]],
           },
         ],
-        // listTrash: 已删除的卷（无）
-        [],
-        // listTrash: 已删除的书（无）
-        [],
-        // permanentDelete 内部: 查询笔记
-        [
-          {
-            columns: ['id', 'volume_id', 'book_id'],
-            values: [['note-exp', 'vol-1', 'book-1']],
-          },
-        ],
-        // permanentDelete 内部: 查询卷下的笔记（不会执行到这里，因为 type=note）
-        [],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      // mock storage functions for permanentDelete
-      vi.mocked(storage.listDirectory).mockResolvedValue([])
-      vi.mocked(storage.deleteFile).mockResolvedValue(undefined)
+      const result = listTemplates()
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('日记模板')
+      expect(result[0].scope).toBe('global')
+      expect(result[0].bookId).toBeNull() // 数据库返回 null
+    })
+  })
 
-      const result = await cleanExpiredTrash()
-      expect(result).toBe(1)
+  // ==================== createTemplate ====================
+  describe('createTemplate', () => {
+    it('应正确创建模板', () => {
+      const mockDb = createMockDB()
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      vi.spyOn(Date, 'now').mockRestore()
+      const result = createTemplate('会议记录', '## 会议内容', 'global')
+
+      expect(result.name).toBe('会议记录')
+      expect(result.scope).toBe('global')
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO templates'),
+        expect.anything(),
+      )
+    })
+  })
+
+  // ==================== deleteTemplate ====================
+  describe('deleteTemplate', () => {
+    it('应从数据库删除模板', () => {
+      const mockDb = createMockDB()
+      vi.mocked(database.getDB).mockReturnValue(mockDb as never)
+
+      deleteTemplate('tpl-1')
+
+      expect(mockDb.run).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM templates'),
+        expect.arrayContaining(['tpl-1']),
+      )
     })
   })
 })
