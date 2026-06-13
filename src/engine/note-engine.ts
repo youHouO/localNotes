@@ -36,11 +36,14 @@ export function createBook(name: string): Book {
   return { id, name, createdAt: t, updatedAt: t, noteCount: 0 }
 }
 
-export function listBooks(): Book[] {
+export type SortBy = 'updatedAt' | 'createdAt'
+
+export function listBooks(sortBy: SortBy = 'updatedAt'): Book[] {
   assertStorageReady()
   const db = getDB()
+  const orderColumn = sortBy === 'createdAt' ? 'created_at' : 'updated_at'
   const res = db.exec(
-    `SELECT id, name, created_at, updated_at, note_count FROM books WHERE updated_at > 0 ORDER BY updated_at DESC`,
+    `SELECT id, name, created_at, updated_at, note_count FROM books WHERE updated_at > 0 ORDER BY ${orderColumn} DESC`,
   )
   if (!res || res.length === 0) return []
   return res[0].values.map((row) => ({
@@ -136,11 +139,12 @@ export function createVolume(bookId: string, name: string): Volume {
   return { id, bookId, name, createdAt: t, updatedAt: t, noteCount: 0, sortOrder: 0 }
 }
 
-export function listVolumes(bookId: string): Volume[] {
+export function listVolumes(bookId: string, sortBy: SortBy = 'updatedAt'): Volume[] {
   assertStorageReady()
   const db = getDB()
+  const orderColumn = sortBy === 'createdAt' ? 'created_at' : 'updated_at'
   const res = db.exec(
-    `SELECT id, book_id, name, created_at, updated_at, note_count, sort_order FROM volumes WHERE book_id = ? AND updated_at > 0 ORDER BY sort_order, created_at`,
+    `SELECT id, book_id, name, created_at, updated_at, note_count, sort_order FROM volumes WHERE book_id = ? AND updated_at > 0 ORDER BY ${orderColumn} DESC`,
     [bookId],
   )
   if (!res || res.length === 0) return []
@@ -338,11 +342,12 @@ export function renameNote(id: string, newTitle: string): void {
   ])
 }
 
-export function listNotes(volumeId: string): Note[] {
+export function listNotes(volumeId: string, sortBy: SortBy = 'updatedAt'): Note[] {
   assertStorageReady()
   const db = getDB()
+  const orderColumn = sortBy === 'createdAt' ? 'created_at' : 'updated_at'
   const res = db.exec(
-    `SELECT id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count FROM notes WHERE volume_id = ? AND updated_at > 0 ORDER BY updated_at DESC`,
+    `SELECT id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count FROM notes WHERE volume_id = ? AND updated_at > 0 ORDER BY ${orderColumn} DESC`,
     [volumeId],
   )
   if (!res || res.length === 0) return []

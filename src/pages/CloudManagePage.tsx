@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Cloud, Plus, Trash2, Power, PowerOff, Globe } from 'lucide-react'
+import { ArrowLeft, Cloud, Plus, Trash2, Power, PowerOff, Globe, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { testConnection } from '@/engine/sync-engine'
+import { testConnection, syncToCloud } from '@/engine/sync-engine'
 import type { CloudDriveConfig } from '@/types'
 
 /**
@@ -83,6 +83,27 @@ export function CloudManagePage() {
     setDrives(drives.filter(d => d.id !== driveId))
   }
 
+  const handleSync = async (drive: CloudDriveConfig) => {
+    if (!drive.enabled) {
+      alert('请先启用该云盘')
+      return
+    }
+    const result = await syncToCloud({
+      type: drive.type as 'webdav' | 'ftp' | 'sftp' | 's3',
+      host: drive.url,
+      username: drive.username,
+      password: drive.password,
+    })
+    if (result.connected) {
+      setDrives(drives.map(d =>
+        d.id === drive.id ? { ...d, lastSyncAt: result.lastSync ?? Date.now(), syncStatus: 'success' as const } : d
+      ))
+      alert('同步成功')
+    } else {
+      alert(`同步失败: ${result.error}`)
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-white">
       <header className="h-12 flex items-center gap-3 px-4 bg-[#FAFAFA] border-b border-[#E5E7EB] shrink-0">
@@ -128,6 +149,14 @@ export function CloudManagePage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleSync(drive)}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> 同步
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
