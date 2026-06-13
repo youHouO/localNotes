@@ -66,7 +66,7 @@
 ### 测试
 - [x] 更新 note-engine.test.ts 适配新的引擎实现（30 个用例全部通过）
 - [x] database.ts 单元测试（12 个用例全部通过）
-- [ ] encryption.ts 单元测试
+- [x] encryption.ts 单元测试（13 个用例全部通过）
 - [ ] storage 层集成测试
 
 ### UI/UX
