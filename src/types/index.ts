@@ -12,7 +12,7 @@ export type SortOrder = 'modified' | 'created'
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error'
 
 /** 视图模式 */
-export type ViewMode = 'split' | 'edit' | 'preview'
+export type ViewMode = 'edit' | 'preview'
 
 /** 搜索范围 */
 export type SearchScope = 'all' | 'current-book'
