@@ -556,27 +556,37 @@ export function HomePage() {
   return (
     <div className="flex flex-col h-screen bg-white">
       {/* 顶部栏 */}
-      <header className="h-12 flex items-center justify-between px-4 bg-white border-b border-[hsl(var(--border))] shrink-0">
-        <div className="flex items-center gap-2">
+      <header className="h-12 flex items-center justify-between px-3 sm:px-4 bg-white border-b border-[hsl(var(--border))] shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {/* 移动端菜单按钮 */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden h-8 w-8"
+            className="md:hidden h-8 w-8 shrink-0"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
-          <div className="w-7 h-7 bg-[hsl(var(--primary))] rounded-lg flex items-center justify-center">
+          <div className="w-7 h-7 bg-[hsl(var(--primary))] rounded-lg flex items-center justify-center shrink-0">
             <span className="text-white text-xs font-bold">N</span>
           </div>
-          <h1 className="text-sm font-semibold text-gray-800">{APP_NAME}</h1>
+          {/* 标题在移动端隐藏，sm以上显示 */}
+          <h1 className="hidden sm:block text-sm font-semibold text-gray-800 truncate">{APP_NAME}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* 搜索框：移动端只显示图标按钮 */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="sm:hidden h-8 w-8 text-gray-400 hover:text-[hsl(var(--primary))]"
+            onClick={() => setSearchModalOpen(true)}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+          <div className="relative hidden sm:block">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <Input
-              className="w-[160px] sm:w-[220px] md:w-[260px] h-8 pl-8 pr-3 rounded-lg bg-[hsl(220 14% 97%)] border-transparent text-sm focus:border-[hsl(var(--primary))]/30 focus:bg-white transition-colors"
+              className="w-[180px] md:w-[220px] lg:w-[260px] h-8 pl-8 pr-3 rounded-lg bg-[hsl(220 14% 97%)] border-transparent text-sm focus:border-[hsl(var(--primary))]/30 focus:bg-white transition-colors"
               placeholder="搜索笔记..."
               onFocus={() => setSearchModalOpen(true)}
               onClick={() => setSearchModalOpen(true)}
