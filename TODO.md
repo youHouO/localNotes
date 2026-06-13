@@ -67,7 +67,8 @@
 - [x] 更新 note-engine.test.ts 适配新的引擎实现（30 个用例全部通过）
 - [x] database.ts 单元测试（12 个用例全部通过）
 - [x] encryption.ts 单元测试（13 个用例全部通过）
-- [x] 全部 118 个测试通过（12 个测试文件）
+- [x] storage 层集成测试（33 个用例全部通过）
+- [x] 全部 151 个测试通过（13 个测试文件）
 
 ---
 
@@ -75,10 +76,6 @@
 
 ### 功能完善
 - [ ] image-engine.ts: `syncImages` 实际调用云盘上传 API（需 sync-engine 集成）
-- [x] encryption.ts: 笔记内容加密存储集成（saveNote/loadNote 加解密，[ENC] 标记）
-
-### 测试
-- [ ] storage 层集成测试
 
 ### 兼容性
 - [ ] Chrome/Safari/Firefox 移动端测试
