@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { testConnection, syncToCloud } from '@/engine/sync-engine'
+import type { SyncProgressCallback } from '@/engine/sync-engine'
 import type { CloudDriveConfig } from '@/types'
 
 /**
@@ -28,6 +29,10 @@ export function CloudManagePage() {
   const [formPassword, setFormPassword] = useState('')
   const [formName, setFormName] = useState('')
   const [testing, setTesting] = useState(false)
+
+  // 同步进度
+  const [syncing, setSyncing] = useState(false)
+  const [syncProgress, setSyncProgress] = useState({ phase: '', current: 0, total: 0 })
 
   const handleAdd = () => {
     setFormUrl('')
@@ -88,19 +93,31 @@ export function CloudManagePage() {
       alert('请先启用该云盘')
       return
     }
-    const result = await syncToCloud({
-      type: drive.type as 'webdav' | 'ftp' | 'sftp' | 's3',
-      host: drive.url,
-      username: drive.username,
-      password: drive.password,
-    })
-    if (result.connected) {
-      setDrives(drives.map(d =>
-        d.id === drive.id ? { ...d, lastSyncAt: result.lastSync ?? Date.now(), syncStatus: 'success' as const } : d
-      ))
-      alert('同步成功')
-    } else {
-      alert(`同步失败: ${result.error}`)
+    setSyncing(true)
+    setSyncProgress({ phase: '正在准备同步...', current: 0, total: 0 })
+
+    const onProgress: SyncProgressCallback = (phase, current, total) => {
+      setSyncProgress({ phase, current, total })
+    }
+
+    try {
+      const result = await syncToCloud({
+        type: drive.type as 'webdav' | 'ftp' | 'sftp' | 's3',
+        host: drive.url,
+        username: drive.username,
+        password: drive.password,
+      }, onProgress)
+      if (result.connected) {
+        setDrives(drives.map(d =>
+          d.id === drive.id ? { ...d, lastSyncAt: result.lastSync ?? Date.now(), syncStatus: 'success' as const } : d
+        ))
+      } else {
+        setSyncProgress({ phase: `同步失败: ${result.error}`, current: 0, total: 0 })
+      }
+    } catch (err) {
+      setSyncProgress({ phase: `同步失败: ${err instanceof Error ? err.message : String(err)}`, current: 0, total: 0 })
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -230,6 +247,37 @@ export function CloudManagePage() {
             <Button onClick={handleConnect} disabled={testing}>
               {testing ? '测试连接中...' : '连接'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 同步进度弹窗 */}
+      <Dialog open={syncing} onOpenChange={(v) => !v && setSyncing(false)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>同步进度</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="text-sm text-gray-600">{syncProgress.phase}</div>
+            <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all duration-300"
+                style={{ width: syncProgress.total > 0 ? `${Math.min((syncProgress.current / syncProgress.total) * 100, 100)}%` : '0%' }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>
+                {syncProgress.total > 0 ? `${syncProgress.current}/${syncProgress.total}` : ''}
+              </span>
+              <span>
+                {syncProgress.total > 0 ? `${Math.round((syncProgress.current / syncProgress.total) * 100)}%` : ''}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            {!syncing && (
+              <Button variant="outline" onClick={() => setSyncing(false)}>关闭</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

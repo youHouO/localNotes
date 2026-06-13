@@ -5,6 +5,7 @@
 
 import { isStorageReady, writeFile, readFile, deleteFile, listDirectory } from './storage'
 import { getDB } from './database'
+import imageCompression from 'browser-image-compression'
 
 export interface ImageInfo {
   id: string
@@ -45,8 +46,21 @@ export async function saveImage(
   const webpName = `${id}.webp`
   const path = `Books/${bookId}/Assets/Images/${webpName}`
 
-  // 简化：直接保存原始数据，实际应使用 Canvas 转为 WebP
-  await writeFile(path, imageData)
+  let finalData: Uint8Array
+  let width = 0
+  let height = 0
+
+  try {
+    const compressed = await compressImage(imageData)
+    finalData = compressed.data
+    width = compressed.width
+    height = compressed.height
+  } catch {
+    // 压缩失败（如非图片数据），降级为直接保存原始数据
+    finalData = imageData
+  }
+
+  await writeFile(path, finalData)
 
   const info: ImageInfo = {
     id,
@@ -54,9 +68,9 @@ export async function saveImage(
     bookId,
     originalName,
     webpName,
-    size: imageData.length,
-    width: 0,
-    height: 0,
+    size: finalData.length,
+    width,
+    height,
     createdAt: now(),
   }
 
@@ -68,6 +82,44 @@ export async function saveImage(
   )
 
   return info
+}
+
+/**
+ * 压缩图片为 WebP 格式
+ * @param imageData 原始图片数据（Uint8Array）
+ * @returns 压缩后的数据及图片尺寸
+ */
+async function compressImage(
+  imageData: Uint8Array,
+): Promise<{ data: Uint8Array; width: number; height: number }> {
+  // 将 Uint8Array 转为 File 对象
+  const file = new File([imageData], 'image', { type: 'image/*' })
+
+  // 使用 browser-image-compression 压缩
+  const compressedFile = await imageCompression(file, {
+    maxWidth: 1920,
+    maxHeight: 1920,
+    maxSizeMB: 1,
+    fileType: 'image/webp' as string,
+    initialQuality: 0.8,
+  })
+
+  // 将压缩后的 Blob 转为 Uint8Array
+  const compressedData = new Uint8Array(await compressedFile.arrayBuffer())
+
+  // 使用 canvas 获取图片尺寸
+  const img = new Image()
+  const objectUrl = URL.createObjectURL(compressedFile)
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('无法加载图片'))
+    img.src = objectUrl
+  })
+  const width = img.naturalWidth
+  const height = img.naturalHeight
+  URL.revokeObjectURL(objectUrl)
+
+  return { data: compressedData, width, height }
 }
 
 /**

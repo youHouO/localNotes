@@ -86,11 +86,12 @@ describe('AES-256-CTR 加密解密', () => {
     expect(iv1).not.toEqual(iv2)
   })
 
-  it('篡改密文后解密失败', async () => {
+  it('篡改密文后解密结果与原文不同', async () => {
     const encrypted = await encrypt('test')
-    // 篡改密文中间字节
-    encrypted[20] = (encrypted[20] + 1) % 256
-    await expect(decrypt(encrypted)).rejects.toThrow()
+    // 篡改密文第一个字节（跳过 16 字节 IV，位置 16 是密文起始）
+    encrypted[16] = (encrypted[16] + 1) % 256
+    const decrypted = await decrypt(encrypted)
+    expect(decrypted).not.toBe('test')
   })
 
   it('密文长度不足 16 字节时解密失败', async () => {

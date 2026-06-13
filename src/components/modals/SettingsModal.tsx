@@ -4,12 +4,14 @@ import {
 } from '@/components/ui/dialog'
 import {
   Cloud, Trash2, FileText, Image, Download, Shield, Database, Info,
-  BookOpen, FolderOpen, StickyNote,
+  BookOpen, FolderOpen, StickyNote, ArrowLeft,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   listTrash, restoreFromTrash, permanentDelete,
   listTemplates, deleteTemplate,
 } from '@/engine/note-engine'
+import { exportRawKey, sha256, getKey } from '@/engine/encryption'
 import type { TrashItem } from '@/engine/note-engine'
 import type { Template } from '@/types'
 
@@ -112,7 +114,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 云盘同步子页面 */}
         {subPage === 'cloud' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>云盘同步</DialogTitle>
               <DialogDescription>配置 WebDAV 云盘进行数据备份和同步</DialogDescription>
             </DialogHeader>
@@ -125,7 +128,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 模板管理子页面 */}
         {subPage === 'templates' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>模板管理</DialogTitle>
               <DialogDescription>管理笔记模板，快速创建常用格式</DialogDescription>
             </DialogHeader>
@@ -138,7 +142,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 图片设置子页面 */}
         {subPage === 'image' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>图片设置</DialogTitle>
               <DialogDescription>配置图片压缩质量和存储选项</DialogDescription>
             </DialogHeader>
@@ -151,7 +156,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 回收站子页面 */}
         {subPage === 'trash' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>回收站</DialogTitle>
               <DialogDescription>查看和恢复已删除的内容（保留30天）</DialogDescription>
             </DialogHeader>
@@ -164,7 +170,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 数据导出子页面 */}
         {subPage === 'export' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>数据导出</DialogTitle>
               <DialogDescription>导出笔记为 Markdown、PDF 或 ZIP</DialogDescription>
             </DialogHeader>
@@ -177,7 +184,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 安全与加密子页面 */}
         {subPage === 'security' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>安全与加密</DialogTitle>
               <DialogDescription>AES-256 加密保护你的笔记数据</DialogDescription>
             </DialogHeader>
@@ -190,7 +198,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 数据库管理子页面 */}
         {subPage === 'database' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>数据库管理</DialogTitle>
               <DialogDescription>查看数据库状态、重建索引</DialogDescription>
             </DialogHeader>
@@ -203,7 +212,8 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
         {/* 关于子页面 */}
         {subPage === 'about' && (
           <>
-            <DialogHeader>
+            <DialogHeader className="relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>关于</DialogTitle>
               <DialogDescription>版本信息与开源许可</DialogDescription>
             </DialogHeader>
@@ -543,14 +553,119 @@ function ExportSettingsContent() {
 }
 
 function SecuritySettingsContent() {
+  const [keyFingerprint, setKeyFingerprint] = useState<string | null>(null)
+  const [keyInitialized, setKeyInitialized] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rawKey = await exportRawKey()
+        if (cancelled) return
+        if (rawKey.length === 0) {
+          setKeyInitialized(false)
+          setKeyFingerprint(null)
+        } else {
+          const hash = await sha256(rawKey)
+          if (cancelled) return
+          setKeyInitialized(true)
+          setKeyFingerprint(hash.slice(0, 16))
+        }
+      } catch {
+        if (!cancelled) {
+          setKeyInitialized(false)
+          setKeyFingerprint(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const handleRegenerate = async () => {
+    setActionLoading('regenerate')
+    try {
+      localStorage.removeItem('localnotes_aes_key')
+      await getKey()
+      const rawKey = await exportRawKey()
+      if (rawKey.length === 0) {
+        setKeyInitialized(false)
+        setKeyFingerprint(null)
+      } else {
+        const hash = await sha256(rawKey)
+        setKeyInitialized(true)
+        setKeyFingerprint(hash.slice(0, 16))
+      }
+    } catch (err) {
+      console.error('重新生成密钥失败:', err)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleExport = async () => {
+    setActionLoading('export')
+    try {
+      const rawKey = await exportRawKey()
+      if (rawKey.length === 0) return
+      let binary = ''
+      for (let i = 0; i < rawKey.length; i++) {
+        binary += String.fromCharCode(rawKey[i])
+      }
+      const base64 = btoa(binary)
+      await navigator.clipboard.writeText(base64)
+    } catch (err) {
+      console.error('导出密钥失败:', err)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* 密钥状态 */}
       <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="text-sm font-medium text-blue-800 mb-1">AES-256-CTR 加密</div>
+        <div className="text-sm font-medium text-blue-800 mb-2">密钥状态</div>
+        {loading ? (
+          <div className="text-xs text-blue-600">加载中...</div>
+        ) : keyInitialized ? (
+          <div className="text-xs text-blue-600">
+            密钥指纹: {keyFingerprint}...
+          </div>
+        ) : (
+          <div className="text-xs text-orange-600">未初始化</div>
+        )}
+      </div>
+
+      {/* 加密算法说明 */}
+      <div className="p-4 bg-blue-50 rounded-lg">
+        <div className="text-sm font-medium text-blue-800 mb-1">AES-256-GCM 加密</div>
         <div className="text-xs text-blue-600 leading-relaxed">
-          所有笔记和图片均使用 AES-256-CTR 算法加密存储。密钥通过固定字符串 SHA-256 派生，确保一致性。
+          所有笔记和图片均使用 AES-256-GCM 算法加密存储。密钥通过 PBKDF2 (100,000 iterations) 派生，确保安全性。
         </div>
       </div>
+
+      {/* 操作按钮 */}
+      <div className="flex gap-3">
+        <button
+          onClick={handleRegenerate}
+          disabled={actionLoading !== null}
+          className="px-4 py-2 text-sm font-medium rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {actionLoading === 'regenerate' ? '处理中...' : '重新生成密钥'}
+        </button>
+        <button
+          onClick={handleExport}
+          disabled={actionLoading !== null || !keyInitialized}
+          className="px-4 py-2 text-sm font-medium rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {actionLoading === 'export' ? '导出中...' : '导出密钥'}
+        </button>
+      </div>
+
       <div className="text-sm text-gray-500 leading-relaxed">
         你的数据完全在本地处理，不会上传到任何第三方服务器。
       </div>

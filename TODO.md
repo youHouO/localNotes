@@ -48,32 +48,37 @@
 - [x] 预览模式 DOM 销毁
 - [x] 搜索回调 keyword/matchLine
 
----
-
-## 待完成
-
-### 功能完善
+### 功能完善（本轮新增）
 - [x] note-engine.ts: `loadNote` 实际从 storage 读取笔记内容
 - [x] note-engine.ts: `saveNote` 实际写入内容到 storage 文件 + SHA256 哈希 + 图片计数
 - [x] note-engine.ts: `restoreFromTrash` 实际从 .trash 移回文件并恢复完整元数据
-- [ ] image-engine.ts: 图片 WebP 压缩（当前直接保存原始数据）
-- [ ] image-engine.ts: `syncImages` 实际调用云盘上传 API
-- [ ] export-engine.ts: ZIP 导出使用 JSZip 库（当前返回 JSON）
-- [ ] export-engine.ts: HTML 导出使用 marked 库渲染 Markdown
-- [ ] sync-engine.ts: 实际实现 WebDAV/FTP/SFTP/S3 协议通信
-- [ ] encryption.ts: 笔记内容加密存储集成
+- [x] image-engine.ts: 图片 WebP 压缩（browser-image-compression 库，失败降级保存原图）
+- [x] export-engine.ts: ZIP 导出使用 JSZip 库（含笔记+图片打包）
+- [x] export-engine.ts: HTML 导出使用 react-markdown 渲染（GitHub 风格 CSS）
+- [x] sync-engine.ts: WebDAV 协议通信（webdav 库，含进度回调）
+- [x] sync-engine.ts: generateManifest 从数据库生成文件清单
+- [x] CloudManagePage: 同步进度弹窗（阶段文字+进度条+百分比）
+- [x] SettingsModal: 加密设置 UI 对接（密钥指纹/重新生成/导出）
+- [x] SettingsModal: 所有子页面添加返回按钮
+- [x] flow1-create-note 冒烟测试修复（mock CREATE TABLE + 参数修正）
+- [x] encryption 冒烟测试修复（AES-CTR 篡改密文行为修正）
 
 ### 测试
 - [x] 更新 note-engine.test.ts 适配新的引擎实现（30 个用例全部通过）
 - [x] database.ts 单元测试（12 个用例全部通过）
 - [x] encryption.ts 单元测试（13 个用例全部通过）
-- [ ] storage 层集成测试
+- [x] 全部 118 个测试通过（12 个测试文件）
 
-### UI/UX
-- [x] NoteEditor: 退出笔记时按未同步图片数量区分 Toast/确认框
-- [ ] CloudManagePage: 同步进度弹窗
-- [ ] SettingsModal: 加密设置 UI 对接 encryption.ts
-- [ ] 弹窗关闭按钮（P2 低优先级）
+---
+
+## 待完成
+
+### 功能完善
+- [ ] image-engine.ts: `syncImages` 实际调用云盘上传 API（需 sync-engine 集成）
+- [ ] encryption.ts: 笔记内容加密存储集成（在 saveNote/loadNote 中集成加解密）
+
+### 测试
+- [ ] storage 层集成测试
 
 ### 兼容性
 - [ ] Chrome/Safari/Firefox 移动端测试
