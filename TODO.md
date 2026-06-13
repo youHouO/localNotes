@@ -53,9 +53,9 @@
 ## 待完成
 
 ### 功能完善
-- [ ] note-engine.ts: `loadNote` 实际从 storage 读取笔记内容（当前返回空字符串）
-- [ ] note-engine.ts: `saveNote` 实际写入内容到 storage 文件
-- [ ] note-engine.ts: `restoreFromTrash` 实际从 .trash 移回文件并恢复完整元数据
+- [x] note-engine.ts: `loadNote` 实际从 storage 读取笔记内容
+- [x] note-engine.ts: `saveNote` 实际写入内容到 storage 文件 + SHA256 哈希 + 图片计数
+- [x] note-engine.ts: `restoreFromTrash` 实际从 .trash 移回文件并恢复完整元数据
 - [ ] image-engine.ts: 图片 WebP 压缩（当前直接保存原始数据）
 - [ ] image-engine.ts: `syncImages` 实际调用云盘上传 API
 - [ ] export-engine.ts: ZIP 导出使用 JSZip 库（当前返回 JSON）
@@ -64,7 +64,7 @@
 - [ ] encryption.ts: 笔记内容加密存储集成
 
 ### 测试
-- [ ] 更新 note-engine.test.ts 适配新的引擎实现
+- [x] 更新 note-engine.test.ts 适配新的引擎实现（30 个用例全部通过）
 - [ ] database.ts 单元测试
 - [ ] encryption.ts 单元测试
 - [ ] storage 层集成测试
