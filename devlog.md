@@ -1,6 +1,17 @@
 # 开发日志
 规则：新记录追加在顶部 | 每月归档旧记录为devlog.YYYYMM.md | 仅保留最近2周记录 | 只记录架构级改动和重大bug，避免重复踩坑
 
+## 2026-06-13（第三轮：导出功能集成 + 设置入口完善）
+
+### 导出功能 UI 对接
+- **NoteEditor**：导出菜单对接 export-engine（Markdown/HTML/PDF），添加图标，调用真实导出函数生成 Blob 下载
+- **SettingsModal**：ExportSettingsContent 重写，列出所有书支持 ZIP 批量导出，单篇导出提示引导到编辑器
+- **HomePage**：侧边栏补充数据导出、安全加密、数据库管理三个入口
+
+### 云盘同步完善
+- **sync-engine.ts**：新增 `uploadFile` 单文件上传函数，供 image-engine 调用
+- **image-engine.ts**：`syncImages` 集成 `uploadFile`，实际上传图片到 WebDAV 云盘，上传失败不标记为已同步
+
 ## 2026-06-13（第二轮：引擎完善 + UI 增强 + 测试补充）
 
 ### 引擎模块完善
