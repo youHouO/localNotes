@@ -47,3 +47,11 @@ export const CONFIG_FILE_PATH = 'config.json'
 
 /** 清单文件路径（每个云盘根目录下） */
 export const MANIFEST_FILE_NAME = 'manifest.json'
+
+/** IndexedDB 中存储 directory handle 的数据库名 */
+export const STORAGE_HANDLE_DB_NAME = 'localnotes-storage'
+export const STORAGE_HANDLE_STORE_NAME = 'handles'
+export const STORAGE_HANDLE_KEY = 'root-directory'
+
+/** showDirectoryPicker 的 id 参数，让浏览器记住用户选择 */
+export const DIRECTORY_PICKER_ID = 'localnotes-data'

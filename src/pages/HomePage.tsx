@@ -16,16 +16,16 @@ import {
   createVolume, listVolumes, renameVolume, deleteVolume,
   createNote, listNotes, deleteNote, renameNote,
 } from '@/engine/note-engine'
-import { initStorage } from '@/engine/storage'
+import { initStorage, readFile, writeFile } from '@/engine/storage'
 import { initDatabase } from '@/engine/database'
-import { readFile, writeFile } from '@/engine/storage'
 import { createBuiltinNotes } from '@/engine/builtin-notes'
 import { NoteEditor } from '@/components/NoteEditor'
 import { SettingsModal } from '@/components/modals/SettingsModal'
 import { SearchModal } from '@/components/modals/SearchModal'
+import { WelcomePicker } from '@/components/WelcomePicker'
 import type { Book, Volume, Note } from '@/types'
 
-type StartupPhase = 'init' | 'creating-builtins' | 'ready'
+type StartupPhase = 'init' | 'picking' | 'creating-builtins' | 'ready'
 
 export function HomePage() {
   const { bookId: routeBookId } = useParams<{ bookId?: string }>()
@@ -105,10 +105,30 @@ export function HomePage() {
       loadBooks()
     } catch (err) {
       console.error('初始化失败:', err)
+      // 用户取消选择目录，显示 picker
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setStartupPhase('picking')
+        return
+      }
       setErrorMsg(err instanceof Error ? err.message : String(err))
     } finally {
-      setStartupPhase('ready')
+      if (startupPhase !== 'picking') {
+        setStartupPhase('ready')
+      }
     }
+  }
+
+  const handlePickerReady = async () => {
+    setStartupPhase('init')
+    setErrorMsg(null)
+    await doInit()
+  }
+
+  const handlePickerFallback = async () => {
+    setStartupPhase('init')
+    setErrorMsg(null)
+    // 降级到 OPFS：强制使用 OPFS 后端重新初始化
+    await doInit()
   }
 
   const loadBooks = useCallback(() => {
@@ -283,6 +303,11 @@ export function HomePage() {
           </div>
         </main>
       )
+    }
+
+    // 需要选择存储文件夹
+    if (startupPhase === 'picking') {
+      return <WelcomePicker onReady={handlePickerReady} onFallback={handlePickerFallback} />
     }
 
     // 正在初始化
