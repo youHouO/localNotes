@@ -4,7 +4,8 @@
  */
 
 import { getDB, isFTS5Available, updateFTSContent } from './database'
-import { isStorageReady, moveFile, deleteFile, fileExists } from './storage'
+import { isStorageReady, moveFile, deleteFile, fileExists, readFile, writeFile } from './storage'
+import { sha256 } from './encryption'
 import type { Book, Volume, Note, Template } from '@/types'
 
 const TRASH_RETENTION_DAYS = 30
@@ -20,6 +21,14 @@ function now(): number {
 
 function generateId(): string {
   return crypto.randomUUID()
+}
+
+async function computeContentHash(content: string): Promise<string> {
+  try {
+    return await sha256(content)
+  } catch {
+    return ''
+  }
 }
 
 /* ===================== 书操作 ===================== */
@@ -285,23 +294,54 @@ export interface NoteWithContent {
   content: string
 }
 
-export function loadNote(noteId: string): NoteWithContent {
+export async function loadNote(noteId: string): Promise<NoteWithContent> {
   assertStorageReady()
   const note = getNote(noteId)
   if (!note) throw new Error('笔记不存在')
-  // 内容存储在单独的文件中，路径: Books/{bookId}/Notes/{noteId}.note
-  // 这里简化处理，实际应从 storage 读取
-  return { note, content: '' }
+
+  // 从 storage 读取笔记内容文件
+  const contentPath = `Books/${note.bookId}/Notes/${noteId}.note`
+  let content = ''
+  try {
+    const data = await readFile(contentPath)
+    if (data) {
+      content = new TextDecoder().decode(data)
+    }
+  } catch {
+    // 文件不存在时 content 为空字符串
+  }
+
+  return { note, content }
 }
 
-export function saveNote(note: Note): void {
+export async function saveNote(note: Note, content: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   const t = now()
+
+  // 计算内容哈希和字数
+  const contentHash = await computeContentHash(content)
+  const wordCount = content.length
+
+  // 统计图片数量（简单的 ![](...) 正则匹配）
+  const imageCount = (content.match(/!\[.*?\]\(.*?\)/g) || []).length
+
+  // 更新数据库元数据
   db.run(
     `UPDATE notes SET title = ?, content_hash = ?, updated_at = ?, word_count = ?, image_count = ? WHERE id = ? AND updated_at > 0`,
-    [note.title, note.contentHash, t, note.wordCount, note.imageCount, note.id],
+    [note.title, contentHash, t, wordCount, imageCount, note.id],
   )
+
+  // 写入内容文件到 storage
+  const contentPath = `Books/${note.bookId}/Notes/${note.id}.note`
+  await writeFile(contentPath, content)
+
+  // 更新 FTS 索引
+  try {
+    updateFTSContent(note.id, note.title, content)
+  } catch {
+    // FTS 更新失败不阻断主流程
+  }
 }
 
 export function deleteNote(id: string): void {
@@ -478,23 +518,54 @@ export function restoreFromTrash(id: string, type: 'book' | 'volume' | 'note'): 
   const db = getDB()
 
   // 1. 从 trash 表读取元数据
-  const trashRes = db.exec(`SELECT * FROM trash WHERE id = ? AND type = ?`, [id, type])
+  const trashRes = db.exec(`SELECT name, parent_id, deleted_at FROM trash WHERE id = ? AND type = ?`, [id, type])
   if (!trashRes || trashRes.length === 0 || trashRes[0].values.length === 0) {
     throw new Error('回收站中不存在该项目')
   }
+  const row = trashRes[0].values[0]
+  const name = row[0] as string
+  const parentId = row[1] as string | null
+  const deletedAt = row[2] as number
 
-  // 2. 从 .trash 目录恢复文件（简化：实际应 moveFile 回原始位置）
+  // 2. 从 .trash 移回文件
+  const trashPath = type === 'book'
+    ? `Books/.trash/${id}_${deletedAt}`
+    : `Books/.trash/${id}_${deletedAt}.note`
+
+  try {
+    if (type === 'book') {
+      const destPath = `Books/${id}`
+      moveFile(trashPath, destPath)
+    } else {
+      // 笔记文件恢复到原卷目录
+      const destPath = `Books/_restored/${id}.note`
+      moveFile(trashPath, destPath)
+    }
+  } catch {
+    // 文件移动失败不阻断恢复
+  }
+
   // 3. 从 trash 表删除记录
   db.run(`DELETE FROM trash WHERE id = ?`, [id])
 
-  // 4. 重新创建数据库记录（简化：实际应保存完整元数据到 trash 表）
+  // 4. 重新创建数据库记录
   const t = now()
   if (type === 'book') {
-    db.run(`INSERT INTO books (id, name, created_at, updated_at, note_count) VALUES (?, ?, ?, ?, ?)`, [id, '恢复的书', t, t, 0])
+    db.run(
+      `INSERT INTO books (id, name, created_at, updated_at, note_count) VALUES (?, ?, ?, ?, ?)`,
+      [id, name, t, t, 0],
+    )
   } else if (type === 'volume') {
-    db.run(`INSERT INTO volumes (id, book_id, name, created_at, updated_at, note_count, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`, [id, '', '恢复的卷', t, t, 0, 0])
+    db.run(
+      `INSERT INTO volumes (id, book_id, name, created_at, updated_at, note_count, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, parentId ?? '', name, t, t, 0, 0],
+    )
   } else {
-    db.run(`INSERT INTO notes (id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, '', '', '恢复的笔记', '', t, t, 0, 0])
+    const bookId = parentId ?? ''
+    db.run(
+      `INSERT INTO notes (id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, '', bookId, name, '', t, t, 0, 0],
+    )
   }
 }
 
