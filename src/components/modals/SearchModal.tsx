@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  Dialog, DialogContent,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import { Search, X, FileText, FolderOpen, BookOpen } from 'lucide-react'
 import { searchNotes, type SearchResult } from '@/engine/note-engine'
@@ -133,6 +133,10 @@ export function SearchModal({ open, onClose, onOpenNote, currentBookId }: Search
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[600px] max-h-[70vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle>搜索笔记</DialogTitle>
+          <DialogDescription>搜索标题和内容，点击结果跳转</DialogDescription>
+        </DialogHeader>
         {/* 搜索输入区 */}
         <div className="px-5 pt-5 pb-3 border-b border-[hsl(var(--border))]">
           <div className="flex items-center gap-2">

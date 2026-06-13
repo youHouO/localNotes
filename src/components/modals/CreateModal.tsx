@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -51,6 +52,7 @@ export function CreateModal({ open, onClose, onConfirm, title, placeholder = '�
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>输入名称后按 Enter 确认</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Input

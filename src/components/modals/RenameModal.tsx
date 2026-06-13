@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ export function RenameModal({ open, onClose, onConfirm, title, currentName }: Re
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>输入新名称后按 Enter 确认</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Input
