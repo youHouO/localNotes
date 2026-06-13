@@ -158,7 +158,7 @@ export function SearchModal({ open, onClose, onOpenNote, currentBookId }: Search
             {/* 两个独立按钮：当前书 + 全部书 */}
             <div className="flex items-center gap-1 shrink-0">
               <button
-                className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${
+                className={`h-7 px-2 sm:h-9 sm:px-3 rounded-lg text-[10px] sm:text-xs font-medium transition-colors ${
                   scope === 'current'
                     ? 'bg-[hsl(var(--primary))] text-white shadow-sm'
                     : 'bg-[hsl(var(--muted))] text-gray-500 hover:text-gray-700'
@@ -168,7 +168,7 @@ export function SearchModal({ open, onClose, onOpenNote, currentBookId }: Search
                 当前书
               </button>
               <button
-                className={`h-9 px-3 rounded-lg text-xs font-medium transition-colors ${
+                className={`h-7 px-2 sm:h-9 sm:px-3 rounded-lg text-[10px] sm:text-xs font-medium transition-colors ${
                   scope === 'all'
                     ? 'bg-[hsl(var(--primary))] text-white shadow-sm'
                     : 'bg-[hsl(var(--muted))] text-gray-500 hover:text-gray-700'
@@ -243,7 +243,7 @@ export function SearchModal({ open, onClose, onOpenNote, currentBookId }: Search
                           {volume.notes.map((note) => (
                             <button
                               key={note.noteId}
-                              className="flex items-start gap-2.5 pl-5 pr-3 py-2.5 w-full text-left rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
+                              className="flex items-start gap-2.5 pl-3 sm:pl-5 pr-3 py-2.5 w-full text-left rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
                               onClick={() => handleOpenNote(note.noteId, note.matchLine)}
                             >
                               <FileText className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />

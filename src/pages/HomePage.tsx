@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import {
   BookOpen, RefreshCw, Settings, Plus, Trash2, FileText,
   MoreHorizontal, FolderOpen, File, ChevronRight, ChevronDown,
-  Loader2, Library, Search, Pencil, Archive,
+  Loader2, Library, Search, Pencil, Archive, Menu, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +47,9 @@ export function HomePage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [searchKeyword, setSearchKeyword] = useState<string | undefined>(undefined)
   const [searchMatchLine, setSearchMatchLine] = useState<number | undefined>(undefined)
+
+  // 移动端侧边栏状态（默认关闭）
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // 弹窗状态
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -219,6 +222,8 @@ export function HomePage() {
     setSelectedNoteId(noteId)
     setSearchKeyword(keyword)
     setSearchMatchLine(matchLine)
+    // 移动端打开笔记后自动关闭侧边栏
+    if (window.innerWidth < 768) setSidebarOpen(false)
   }
 
   const toggleBook = (bookId: string) => {
@@ -333,8 +338,19 @@ export function HomePage() {
     // 正常：单列目录树布局
     return (
       <div className="flex flex-1 overflow-hidden">
-        {/* 左侧目录树 */}
-        <aside className="w-[260px] bg-[hsl(220 14% 98%)] border-r border-[hsl(var(--border))] flex flex-col shrink-0">
+        {/* 移动端侧边栏遮罩 */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 z-20 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        {/* 左侧目录树 — 移动端可折叠 */}
+        <aside
+          className={`relative z-30 bg-[hsl(220 14% 98%)] border-r border-[hsl(var(--border))] flex flex-col shrink-0 transition-all duration-300 ${
+            sidebarOpen ? 'w-[260px] md:w-[260px]' : 'w-0 md:w-[260px] overflow-hidden'
+          }`}
+        >
           {/* 新建书按钮 */}
           <button
             className="flex items-center gap-2 h-10 px-4 text-sm text-[hsl(var(--primary))] font-medium hover:bg-[hsl(var(--accent))] transition-colors shrink-0"
@@ -372,7 +388,7 @@ export function HomePage() {
                       <span className="text-[11px] text-gray-400 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">{book.noteCount}</span>
                     </div>
                     <button
-                      className="p-1 rounded-md hover:bg-[hsl(var(--muted))] opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                      className="p-1 rounded-md hover:bg-[hsl(var(--muted))] md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0"
                       onClick={(e) => {
                         e.stopPropagation()
                         setContextMenuTarget({ id: book.id, name: book.name, type: 'book' })
@@ -407,7 +423,7 @@ export function HomePage() {
                                 <span className="text-[11px] text-gray-400 shrink-0">{vol.noteCount}</span>
                               </div>
                               <button
-                                className="p-1 rounded-md hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                className="p-1 rounded-md hover:bg-gray-200 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setContextMenuTarget({ id: vol.id, name: vol.name, type: 'volume' })
@@ -433,11 +449,11 @@ export function HomePage() {
                                       <span className="text-[13px] truncate">{note.title}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className="text-[11px] text-gray-400 hidden group-hover:inline">
+                                      <span className="text-[11px] text-gray-400 md:hidden md:group-hover:inline">
                                         {formatTime(note.updatedAt)}
                                       </span>
                                       <button
-                                        className="p-0.5 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-all"
+                                        className="p-0.5 rounded hover:bg-gray-200 md:opacity-0 md:group-hover:opacity-100 transition-all"
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           setContextMenuTarget({ id: note.id, name: note.title, type: 'note' })
@@ -540,6 +556,15 @@ export function HomePage() {
       {/* 顶部栏 */}
       <header className="h-12 flex items-center justify-between px-4 bg-white border-b border-[hsl(var(--border))] shrink-0">
         <div className="flex items-center gap-2">
+          {/* 移动端菜单按钮 */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-8 w-8"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </Button>
           <div className="w-7 h-7 bg-[hsl(var(--primary))] rounded-lg flex items-center justify-center">
             <span className="text-white text-xs font-bold">N</span>
           </div>
@@ -549,9 +574,10 @@ export function HomePage() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <Input
-              className="w-[260px] h-8 pl-8 pr-3 rounded-lg bg-[hsl(220 14% 97%)] border-transparent text-sm focus:border-[hsl(var(--primary))]/30 focus:bg-white transition-colors"
+              className="w-[160px] sm:w-[220px] md:w-[260px] h-8 pl-8 pr-3 rounded-lg bg-[hsl(220 14% 97%)] border-transparent text-sm focus:border-[hsl(var(--primary))]/30 focus:bg-white transition-colors"
               placeholder="搜索笔记..."
               onFocus={() => setSearchModalOpen(true)}
+              onClick={() => setSearchModalOpen(true)}
               readOnly
             />
           </div>
@@ -606,7 +632,7 @@ export function HomePage() {
 
       <SettingsModal open={settingsModalOpen} onClose={() => { setSettingsModalOpen(false); setSettingsInitialPage(undefined) }} initialPage={settingsInitialPage} />
 
-      <SearchModal open={searchModalOpen} onClose={() => setSearchModalOpen(false)} onOpenNote={(noteId) => setSelectedNoteId(noteId)} currentBookId={expandedBookId} />
+      <SearchModal open={searchModalOpen} onClose={() => setSearchModalOpen(false)} onOpenNote={(noteId, keyword, matchLine) => openNote(noteId, keyword, matchLine)} currentBookId={expandedBookId} />
 
       {deleteTarget && (
         <DeleteConfirmModal

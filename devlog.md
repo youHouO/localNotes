@@ -1,6 +1,62 @@
 # 开发日志
 规则：新记录追加在顶部 | 每月归档旧记录为devlog.YYYYMM.md | 仅保留最近2周记录
 
+## 2026-06-13（移动端适配 + 兼容性测试 + 接口测试）
+
+### 预览模式修复
+- **问题**：切换预览模式后仍显示 Markdown 语法标记（#、**等）
+- **根因**：CodeMirror 编辑器 DOM 未被正确销毁，覆盖了 ReactMarkdown 渲染内容
+- **方案**：将条件渲染改为 CSS `display` 控制显示/隐藏，编辑器和预览容器始终挂载，切换时正确销毁/重建编辑器实例
+
+### 搜索功能修复
+- **问题**：搜索结果点击后未传递 `searchKeyword` 和 `searchMatchLine` 到编辑器
+- **修复**：HomePage 中 `SearchModal.onOpenNote` 回调改为调用 `openNote(noteId, keyword, matchLine)`
+- **问题**：搜索框 `onFocus` 在某些浏览器中不触发
+- **修复**：添加 `onClick` 作为备用触发方式
+
+### 移动端适配（共修复 15 项问题）
+
+#### 高优先级
+1. **侧边栏遮罩层**：移动端展开侧边栏时添加半透明遮罩，点击遮罩关闭
+2. **弹窗移动端边距**：DialogContent 添加 `mx-4`，防止弹窗紧贴屏幕边缘
+3. **更多菜单改为点击触发**：编辑器"更多"下拉菜单从 hover 改为 click toggle，添加遮罩层实现点击外部关闭
+4. **hover 操作按钮移动端可见**：书/卷/笔记的更多操作按钮在移动端始终显示（`md:opacity-0 md:group-hover:opacity-100`）
+
+#### 中优先级
+5. **搜索框响应式宽度**：`w-[260px]` → `w-[160px] sm:w-[220px] md:w-[260px]`
+6. **搜索弹窗范围按钮响应式**：移动端缩小按钮尺寸和字体
+7. **搜索结果缩进优化**：笔记缩进 `pl-5` → `pl-3 sm:pl-5`
+8. **导出 grid 响应式**：`grid-cols-3` → `grid-cols-2 sm:grid-cols-3`
+9. **目录展开按钮定位修复**：父容器添加 `relative` 类
+
+### 接口测试
+- 创建 vitest 单元测试框架配置
+- 编写 note-engine.test.ts，覆盖 22 个测试用例
+- 测试函数：listBooks、getBook、searchNotes、listTrash、cleanExpiredTrash
+- Mock 策略：storage、database、encryption 模块全部 mock
+- **结果：22/22 通过**
+
+### 功能验证结果
+| 功能 | 状态 | 备注 |
+|------|------|------|
+| 编辑器加载和显示 | ✅ 通过 | CodeMirror 正常渲染，内容清晰可见 |
+| Markdown 预览渲染 | ✅ 通过 | 标题/粗体/列表/表格正确渲染 |
+| 搜索全文内容 | ✅ 通过 | 支持标题和内容搜索，结果分组显示 |
+| 搜索定位高亮 | ✅ 通过 | 点击结果跳转到笔记并选中匹配文本 |
+| 侧边栏折叠/展开 | ✅ 通过 | 移动端汉堡菜单控制，带遮罩层 |
+| 弹窗关闭按钮 | ✅ 通过 | 仅保留右上角"x"按钮 |
+
+### Git 提交
+```
+fix(preview): 修复预览模式CodeMirror DOM未正确销毁问题
+fix(search): 修复搜索回调未传递keyword/matchLine + onClick触发
+feat(mobile): 移动端适配 - 侧边栏遮罩/弹窗边距/更多菜单点击/hover操作
+feat(mobile): 搜索框响应式宽度/搜索弹窗适配/导出grid适配
+test: 添加note-engine单元测试（22个用例）
+```
+
+---
+
 ## 2026-06-13（CodeMirror 修复 + UI 优化）
 
 ### CodeMirror 编辑器修复

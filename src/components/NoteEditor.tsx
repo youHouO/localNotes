@@ -79,6 +79,7 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [saveAsTemplateModalOpen, setSaveAsTemplateModalOpen] = useState(false)
   const [outlineOpen, setOutlineOpen] = useState(true)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   const editorRef = useRef<HTMLDivElement>(null)
   const editorViewRef = useRef<any>(null)
@@ -184,9 +185,12 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
   useEffect(() => {
     if (loading || error || !editorRef.current) return
     if (!isEditing) {
+      // 切换到预览模式：销毁编辑器实例并清空DOM
       if (editorViewRef.current) { editorViewRef.current.destroy(); editorViewRef.current = null }
+      if (editorRef.current) editorRef.current.innerHTML = ''
       return
     }
+    // 切换到编辑模式：如果编辑器已存在则不再初始化
     if (editorViewRef.current) return
     initEditor()
   }, [loading, error, isEditing])
@@ -385,26 +389,26 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
   return (
     <div className="flex flex-col h-full">
       {/* 工具栏：一行整合所有操作 */}
-      <div className="h-10 flex items-center px-2 bg-white border-b border-[hsl(var(--border))] shrink-0">
+      <div className="h-10 md:h-10 flex items-center px-2 bg-white border-b border-[hsl(var(--border))] shrink-0">
         {/* 左侧：返回首页 + 编辑操作按钮 */}
         <div className="flex items-center gap-0.5 shrink-0">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleBack} title="返回首页">
-            <Home className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-9 w-9 md:h-7 md:w-7" onClick={handleBack} title="返回首页">
+            <Home className="h-5 w-5 md:h-4 md:w-4" />
           </Button>
           {/* 撤销/重做/插入日期（仅编辑模式） - 移到最左侧 */}
           {isEditing && (
             <>
               <Button variant="ghost" size="icon"
-                className="h-7 w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
-                onClick={handleUndo} title="撤销 (Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /></Button>
+                className="h-9 w-9 md:h-7 md:w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
+                onClick={handleUndo} title="撤销 (Ctrl+Z)"><Undo2 className="h-4 w-4 md:h-3.5 md:w-3.5" /></Button>
               <Button variant="ghost" size="icon"
-                className="h-7 w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
-                onClick={handleRedo} title="重做 (Ctrl+Shift+Z)"><Redo2 className="h-3.5 w-3.5" /></Button>
-              <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
+                className="h-9 w-9 md:h-7 md:w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
+                onClick={handleRedo} title="重做 (Ctrl+Shift+Z)"><Redo2 className="h-4 w-4 md:h-3.5 md:w-3.5" /></Button>
+              <div className="hidden md:block w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
               <Button variant="ghost" size="icon"
-                className="h-7 w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
-                onClick={handleInsertDateTime} title="插入日期时间 (Ctrl+Shift+D)"><CalendarPlus className="h-3.5 w-3.5" /></Button>
-              <div className="w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
+                className="h-9 w-9 md:h-7 md:w-7 text-gray-400 hover:text-gray-600 hover:bg-[hsl(var(--muted))]"
+                onClick={handleInsertDateTime} title="插入日期时间 (Ctrl+Shift+D)"><CalendarPlus className="h-4 w-4 md:h-3.5 md:w-3.5" /></Button>
+              <div className="hidden md:block w-px h-4 bg-[hsl(var(--border))] mx-0.5" />
             </>
           )}
         </div>
@@ -421,37 +425,42 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
         {/* 右侧：操作按钮 */}
         <div className="flex items-center gap-0.5 shrink-0">
           <Button variant={viewMode === 'preview' ? 'default' : 'ghost'} size="icon"
-            className={`h-7 w-7 ${viewMode === 'preview' ? '' : 'text-gray-500 hover:bg-[hsl(var(--muted))]'}`}
-            onClick={() => setViewMode('preview')} title="预览"><Eye className="h-3.5 w-3.5" /></Button>
+            className={`h-9 w-9 md:h-7 md:w-7 ${viewMode === 'preview' ? '' : 'text-gray-500 hover:bg-[hsl(var(--muted))]'}`}
+            onClick={() => setViewMode('preview')} title="预览"><Eye className="h-4 w-4 md:h-3.5 md:w-3.5" /></Button>
           <Button variant={viewMode === 'edit' ? 'default' : 'ghost'} size="icon"
-            className={`h-7 w-7 ${viewMode === 'edit' ? '' : 'text-gray-500 hover:bg-[hsl(var(--muted))]'}`}
-            onClick={() => setViewMode('edit')} title="编辑"><Edit3 className="h-3.5 w-3.5" /></Button>
+            className={`h-9 w-9 md:h-7 md:w-7 ${viewMode === 'edit' ? '' : 'text-gray-500 hover:bg-[hsl(var(--muted))]'}`}
+            onClick={() => setViewMode('edit')} title="编辑"><Edit3 className="h-4 w-4 md:h-3.5 md:w-3.5" /></Button>
 
           {embedded ? (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:bg-[hsl(var(--muted))]"
+            <Button variant="ghost" size="icon" className="hidden md:flex h-7 w-7 text-gray-500 hover:bg-[hsl(var(--muted))]"
               onClick={() => navigate(`/editor/${noteId}`)} title="全屏编辑"><Maximize2 className="h-3.5 w-3.5" /></Button>
           ) : (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:bg-[hsl(var(--muted))]"
+            <Button variant="ghost" size="icon" className="hidden md:flex h-7 w-7 text-gray-500 hover:bg-[hsl(var(--muted))]"
               onClick={handleBack} title="退出全屏"><Minimize2 className="h-3.5 w-3.5" /></Button>
           )}
 
-          <div className="relative group">
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="更多"><MoreHorizontal className="h-4 w-4" /></Button>
-            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-[hsl(var(--border))] rounded-xl shadow-lg shadow-black/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-[hsl(var(--muted))] rounded-t-lg transition-colors" onClick={handleExportMarkdown}>导出 Markdown</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-[hsl(var(--muted))]" onClick={handleExportPDF}>导出 PDF</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-[hsl(var(--muted))]" onClick={() => setSaveAsTemplateModalOpen(true)}>另存为模板</button>
-              <button className="w-full text-left px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-b-lg transition-colors" onClick={() => setDeleteModalOpen(true)}>删除笔记</button>
-            </div>
+          <div className="relative">
+            <Button variant="ghost" size="icon" className="h-9 w-9 md:h-7 md:w-7" title="更多" onClick={() => setMoreMenuOpen(!moreMenuOpen)}><MoreHorizontal className="h-5 w-5 md:h-4 md:w-4" /></Button>
+            {moreMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMoreMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-[hsl(var(--border))] rounded-xl shadow-lg shadow-black/10 z-50">
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))] rounded-t-lg transition-colors" onClick={() => { setMoreMenuOpen(false); handleExportMarkdown() }}>导出 Markdown</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))]" onClick={() => { setMoreMenuOpen(false); handleExportPDF() }}>导出 PDF</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs hover:bg-[hsl(var(--muted))]" onClick={() => { setMoreMenuOpen(false); setSaveAsTemplateModalOpen(true) }}>另存为模板</button>
+                  <button className="w-full text-left px-3 py-2 md:py-1.5 text-sm md:text-xs text-red-500 hover:bg-red-50 rounded-b-lg transition-colors" onClick={() => { setMoreMenuOpen(false); setDeleteModalOpen(true) }}>删除笔记</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* 主区域 */}
       <div className="flex flex-1 overflow-hidden">
-        {/* 章节目录 */}
+        {/* 章节目录 — 移动端默认隐藏，可切换 */}
         {outlineOpen && (
-          <aside className="w-[180px] bg-[hsl(220 14% 98%)] border-r border-[hsl(var(--border))] flex flex-col shrink-0 overflow-y-auto">
+          <aside className="hidden md:flex w-[180px] bg-[hsl(220 14% 98%)] border-r border-[hsl(var(--border))] flex-col shrink-0 overflow-y-auto">
             <div className="flex items-center justify-between px-2 py-2">
               <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wide flex items-center gap-1">
                 <Hash className="h-3 w-3" />目录
@@ -485,7 +494,7 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
         )}
 
         {/* 内容 */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
           {/* 目录关闭时显示展开按钮 */}
           {!outlineOpen && (
             <button
@@ -496,24 +505,25 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
             </button>
           )}
 
-          {isEditing ? (
-            <div className="h-full overflow-hidden"><div ref={editorRef} className="w-full h-full" /></div>
-          ) : (
-            <div ref={previewRef} className="h-full overflow-y-auto">
-              <div className="max-w-[780px] mx-auto p-6 markdown-preview">
-                {content ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
-                ) : (
-                  <div className="text-center mt-[60px]">
-                    <p className="text-gray-400 text-sm mb-4">这篇笔记还没有内容</p>
-                    <Button variant="outline" size="sm" onClick={() => setViewMode('edit')}>
-                      <Edit3 className="h-4 w-4 mr-1.5" />开始写作
-                    </Button>
-                  </div>
-                )}
-              </div>
+          {/* 编辑器容器 - 始终挂载，通过CSS控制显示/隐藏 */}
+          <div className="h-full overflow-hidden" style={{ display: isEditing ? 'block' : 'none' }}>
+            <div ref={editorRef} className="w-full h-full" />
+          </div>
+          {/* 预览容器 - 始终挂载，通过CSS控制显示/隐藏 */}
+          <div ref={previewRef} className="h-full overflow-y-auto" style={{ display: isEditing ? 'none' : 'block' }}>
+            <div className="max-w-[780px] mx-auto p-4 md:p-6 markdown-preview">
+              {content ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
+              ) : (
+                <div className="text-center mt-[60px]">
+                  <p className="text-gray-400 text-sm mb-4">这篇笔记还没有内容</p>
+                  <Button variant="outline" size="sm" onClick={() => setViewMode('edit')}>
+                    <Edit3 className="h-4 w-4 mr-1.5" />开始写作
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 

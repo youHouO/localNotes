@@ -521,7 +521,7 @@ function ExportSettingsContent() {
       <div className="text-sm text-gray-500 leading-relaxed">
         将你的笔记导出为不同格式，方便备份和迁移。
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <button className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors">
           <FileText className="h-6 w-6 text-emerald-500" />
           <span className="text-sm font-medium">Markdown</span>

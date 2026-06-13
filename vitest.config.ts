@@ -11,7 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    include: ['tests/smoke/**/*.test.ts'],
+    include: ['tests/smoke/**/*.test.ts', 'src/engine/__tests__/**/*.test.ts'],
     setupFiles: ['tests/smoke/setup.ts'],
     globals: true,
   },
