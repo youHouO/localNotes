@@ -53,7 +53,7 @@ async function doInit(): Promise<void> {
   if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
     try {
       const mod = await import('./storage-fsaa')
-      await mod.initStorage()
+      await mod.initStorage({ defaultPath: true })
       cachedModule = mod
       backend = 'fsaa'
       fallbackReason = null

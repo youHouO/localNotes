@@ -9,8 +9,9 @@ let rootDirHandle: FileSystemDirectoryHandle | null = null
 
 /**
  * 初始化存储：尝试恢复已保存的 handle，失败则请求用户选择目录
+ * @param options - defaultPath 为 true 时，在用户选中的目录下自动创建 LocalNotes 子目录
  */
-export async function initStorage(): Promise<void> {
+export async function initStorage(options?: { defaultPath?: boolean }): Promise<void> {
   // 1. 尝试从 IndexedDB 恢复已保存的 handle
   const savedHandle = await loadHandle()
   if (savedHandle) {
@@ -32,9 +33,57 @@ export async function initStorage(): Promise<void> {
     startIn: 'documents',
   })
 
-  // 3. 保存 handle 到 IndexedDB
-  await saveHandle(handle)
-  rootDirHandle = handle
+  let targetHandle = handle
+
+  // 3. 如果启用默认路径，在选中的目录下创建/获取 LocalNotes 子目录
+  if (options?.defaultPath) {
+    targetHandle = await handle.getDirectoryHandle('LocalNotes', { create: true })
+  }
+
+  // 4. 保存 handle 到 IndexedDB
+  await saveHandle(targetHandle)
+  rootDirHandle = targetHandle
+}
+
+/**
+ * 使用默认路径初始化存储
+ * 先尝试恢复 handle，否则引导用户选择 Documents 并在其下创建 LocalNotes
+ */
+export async function initStorageWithDefaultPath(): Promise<void> {
+  // 1. 尝试从 IndexedDB 恢复已保存的 handle
+  const savedHandle = await loadHandle()
+  if (savedHandle) {
+    const hasPermission = await requestHandlePermission(savedHandle)
+    if (hasPermission) {
+      rootDirHandle = savedHandle
+      return
+    }
+  }
+
+  // 2. 恢复失败或权限不足，请求用户选择目录
+  if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
+    throw new Error('当前浏览器不支持文件系统访问，请使用 Chrome 或 Edge')
+  }
+
+  const handle = await window.showDirectoryPicker({
+    id: 'localnotes-data',
+    mode: 'readwrite',
+    startIn: 'documents',
+  })
+
+  // 3. 在选中的目录下创建/获取 LocalNotes 子目录
+  const localNotesHandle = await handle.getDirectoryHandle('LocalNotes', { create: true })
+
+  // 4. 保存子目录 handle 到 IndexedDB
+  await saveHandle(localNotesHandle)
+  rootDirHandle = localNotesHandle
+}
+
+/**
+ * 获取当前根目录名称
+ */
+export function getRootPath(): string | null {
+  return rootDirHandle?.name ?? null
 }
 
 /**

@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { FolderOpen, ShieldAlert, Info } from 'lucide-react'
+import {
+  Shield,
+  Cloud,
+  HardDrive,
+  FolderOpen,
+  ChevronRight,
+  Check,
+  Info,
+  ShieldAlert,
+} from 'lucide-react'
 
 interface WelcomePickerProps {
   onReady: () => void
@@ -8,7 +17,16 @@ interface WelcomePickerProps {
   fallbackReason?: string | null
 }
 
-export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePickerProps) {
+type Step = 'welcome' | 'location'
+
+const DEFAULT_PATH = '文档/LocalNotes'
+
+export function WelcomePicker({
+  onReady,
+  onFallback,
+  fallbackReason,
+}: WelcomePickerProps) {
+  const [step, setStep] = useState<Step>('welcome')
   const [error, setError] = useState<string | null>(null)
   const [isPicking, setIsPicking] = useState(false)
 
@@ -34,6 +52,71 @@ export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePi
     }
   }
 
+  // 第一屏：欢迎介绍
+  if (step === 'welcome') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <div className="w-full max-w-lg px-6 py-8 text-center">
+          {/* Logo */}
+          <div className="mb-6 flex justify-center">
+            <div className="w-16 h-16 bg-[hsl(var(--primary))] rounded-2xl flex items-center justify-center">
+              <span className="text-white text-2xl font-bold">N</span>
+            </div>
+          </div>
+
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+            欢迎使用 LocalNotes
+          </h1>
+          <p className="text-gray-500 mb-10 text-lg">
+            本地优先的 Markdown 笔记应用，你的数据永远属于你
+          </p>
+
+          {/* 特性卡片 */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+            <div className="bg-gray-50 rounded-xl p-5 text-left">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+                <HardDrive className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">数据存本地</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                笔记文件保存在你的电脑上，应用卸载不丢失
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-5 text-left">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+                <Shield className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">隐私安全</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                无需注册账号，可选 AES-256-GCM 加密
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-5 text-left">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+                <Cloud className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">云同步</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                支持 WebDAV/FTP/S3 等多种协议备份
+              </p>
+            </div>
+          </div>
+
+          <Button
+            className="w-full h-12 text-base"
+            onClick={() => setStep('location')}
+          >
+            开始使用
+            <ChevronRight className="w-5 h-5 ml-1" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // 第二屏：存储位置确认
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
       <div className="w-full max-w-md px-6 py-8 text-center">
@@ -44,26 +127,51 @@ export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePi
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">LocalNotes</h1>
-        <p className="text-gray-500 mb-8">本地优先的 Markdown 笔记应用</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          选择数据存储位置
+        </h1>
+        <p className="text-gray-500 mb-8">
+          LocalNotes 默认将数据存储在以下位置，你也可以选择其他文件夹
+        </p>
 
-        <div className="bg-gray-50 rounded-xl p-5 mb-6 text-left">
-          <h2 className="font-semibold text-gray-800 mb-3">选择一个文件夹来存储你的笔记</h2>
-          <ul className="space-y-2 text-sm text-gray-600">
-            <li className="flex items-start gap-2">
-              <span className="text-green-500 mt-0.5">✓</span>
-              <span>你的所有数据都将保存在你自己的电脑上</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-500 mt-0.5">✓</span>
-              <span>应用卸载后数据不会丢失</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-green-500 mt-0.5">✓</span>
-              <span>你可以在文件管理器中直接查看和管理笔记文件</span>
-            </li>
-          </ul>
-        </div>
+        {/* 默认路径卡片 */}
+        <button
+          onClick={handlePickDirectory}
+          disabled={isPicking}
+          className="w-full text-left bg-blue-50 border-2 border-blue-200 rounded-xl p-5 mb-4 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+              <FolderOpen className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-900">{DEFAULT_PATH}</span>
+                <span className="px-2 py-0.5 bg-blue-200 text-blue-700 text-xs font-medium rounded-full">
+                  推荐
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">
+                方便查找和管理
+              </p>
+            </div>
+            <Check className="w-5 h-5 text-blue-600 shrink-0" />
+          </div>
+        </button>
+
+        {/* 选择其他文件夹 */}
+        <button
+          onClick={handlePickDirectory}
+          disabled={isPicking}
+          className="w-full text-left bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="flex items-center gap-3">
+            <FolderOpen className="w-5 h-5 text-gray-400" />
+            <span className="text-sm text-gray-600">
+              {isPicking ? '正在打开...' : '选择其他文件夹...'}
+            </span>
+          </div>
+        </button>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
@@ -77,7 +185,9 @@ export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePi
             <div>
               <p className="font-medium">已自动降级到安全存储模式</p>
               <p className="text-amber-600 mt-1">原因：{fallbackReason}</p>
-              <p className="text-amber-600 mt-1">数据将保存在浏览器内部，清除浏览器数据会丢失</p>
+              <p className="text-amber-600 mt-1">
+                数据将保存在浏览器内部，清除浏览器数据会丢失
+              </p>
             </div>
           </div>
         )}
@@ -88,8 +198,8 @@ export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePi
             onClick={handlePickDirectory}
             disabled={isPicking}
           >
-            <FolderOpen className="w-5 h-5 mr-2" />
-            {isPicking ? '正在打开...' : '选择文件夹'}
+            <Check className="w-5 h-5 mr-2" />
+            {isPicking ? '正在打开...' : '确认并继续'}
           </Button>
 
           <Button
@@ -98,13 +208,16 @@ export function WelcomePicker({ onReady, onFallback, fallbackReason }: WelcomePi
             onClick={onFallback}
           >
             <ShieldAlert className="w-4 h-4 mr-2" />
-            使用浏览器安全存储（数据清除后丢失）
+            使用浏览器安全存储（降级）
           </Button>
         </div>
 
-        <p className="mt-4 text-xs text-gray-400">
-          建议选择 Documents/LocalNotes 文件夹
-        </p>
+        <button
+          onClick={() => setStep('welcome')}
+          className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          返回上一步
+        </button>
       </div>
     </div>
   )

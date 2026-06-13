@@ -188,6 +188,11 @@ export function HomePage() {
   // ==================== 操作处理 ====================
 
   const handleCreateBook = async (name: string) => {
+    if (!storageReady) {
+      alert('请先设置数据存储位置')
+      setStartupPhase('picking')
+      return
+    }
     try {
       await createBook(name)
       loadBooks()
@@ -197,6 +202,11 @@ export function HomePage() {
   }
 
   const handleCreateVolume = async (name: string) => {
+    if (!storageReady) {
+      alert('请先设置数据存储位置')
+      setStartupPhase('picking')
+      return
+    }
     if (!expandedBookId) return
     try {
       await createVolume(expandedBookId, name)
@@ -208,6 +218,11 @@ export function HomePage() {
   }
 
   const handleCreateNote = async (name: string) => {
+    if (!storageReady) {
+      alert('请先设置数据存储位置')
+      setStartupPhase('picking')
+      return
+    }
     if (!expandedVolumeId || !expandedBookId) return
     try {
       await createNote(expandedVolumeId, expandedBookId, name)
