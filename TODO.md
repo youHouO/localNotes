@@ -70,7 +70,7 @@
 - [ ] storage 层集成测试
 
 ### UI/UX
-- [ ] NoteEditor: 退出笔记时按未同步图片数量区分 Toast/确认框
+- [x] NoteEditor: 退出笔记时按未同步图片数量区分 Toast/确认框
 - [ ] CloudManagePage: 同步进度弹窗
 - [ ] SettingsModal: 加密设置 UI 对接 encryption.ts
 - [ ] 弹窗关闭按钮（P2 低优先级）
