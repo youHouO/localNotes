@@ -88,14 +88,16 @@ export async function saveImage(
 
 /**
  * 压缩图片为 WebP 格式
- * @param imageData 原始图片数据（Uint8Array）
+ * @param input 原始图片数据（Uint8Array 或 File）
  * @returns 压缩后的数据及图片尺寸
  */
-async function compressImage(
-  imageData: Uint8Array,
+export async function compressImage(
+  input: Uint8Array | File,
 ): Promise<{ data: Uint8Array; width: number; height: number }> {
-  // 将 Uint8Array 转为 File 对象
-  const file = new File([imageData], 'image', { type: 'image/*' })
+  // 将输入统一转为 File 对象
+  const file = input instanceof File
+    ? input
+    : new File([input], 'image', { type: 'image/*' })
 
   // 使用 browser-image-compression 压缩
   const compressedFile = await imageCompression(file, {

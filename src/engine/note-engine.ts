@@ -3,7 +3,7 @@
  * 提供书、卷、笔记的 CRUD、搜索、回收站、模板管理
  */
 
-import { getDB, isFTS5Available, updateFTSContent } from './database'
+import { getDB, saveDB, isFTS5Available, updateFTSContent } from './database'
 import { isStorageReady, moveFile, deleteFile, fileExists, readFile, writeFile } from './storage'
 import { sha256, encryptString, decryptToString } from './encryption'
 import type { Book, Volume, Note, Template } from '@/types'
@@ -56,6 +56,7 @@ export function createBook(name: string): Book {
     [id, name, t, t, 0],
   )
   return { id, name, createdAt: t, updatedAt: t, noteCount: 0 }
+  saveDB()
 }
 
 export type SortBy = 'updatedAt' | 'createdAt'
@@ -103,6 +104,7 @@ export function renameBook(id: string, newName: string): void {
     now(),
     id,
   ])
+  saveDB()
 }
 
 export function deleteBook(id: string): void {
@@ -145,6 +147,7 @@ export function deleteBook(id: string): void {
   db.run(`DELETE FROM notes WHERE book_id = ?`, [id])
   db.run(`DELETE FROM volumes WHERE book_id = ?`, [id])
   db.run(`DELETE FROM books WHERE id = ?`, [id])
+  saveDB()
 }
 
 /* ===================== 卷操作 ===================== */
@@ -159,6 +162,7 @@ export function createVolume(bookId: string, name: string): Volume {
     [id, bookId, name, t, t, 0, 0],
   )
   return { id, bookId, name, createdAt: t, updatedAt: t, noteCount: 0, sortOrder: 0 }
+  saveDB()
 }
 
 export function listVolumes(bookId: string, sortBy: SortBy = 'updatedAt'): Volume[] {
@@ -209,6 +213,7 @@ export function renameVolume(id: string, newName: string): void {
     now(),
     id,
   ])
+  saveDB()
 }
 
 export function deleteVolume(id: string): void {
@@ -236,6 +241,7 @@ export function deleteVolume(id: string): void {
   // 3. 从数据库中物理删除
   db.run(`DELETE FROM notes WHERE volume_id = ?`, [id])
   db.run(`DELETE FROM volumes WHERE id = ?`, [id])
+  saveDB()
 }
 
 /* ===================== 笔记操作 ===================== */
@@ -372,6 +378,19 @@ export async function saveNote(note: Note, content: string): Promise<void> {
   } catch {
     // FTS 更新失败不阻断主流程
   }
+
+  saveDB()
+}
+
+export async function saveNoteById(noteId: string, content: string, title?: string): Promise<void> {
+  const note = getNote(noteId)
+  if (!note) throw new Error(`笔记不存在: ${noteId}`)
+  if (title !== undefined) {
+    // 更新标题
+    const db = getDB()
+    db.run(`UPDATE notes SET title = ? WHERE id = ?`, [title, noteId])
+  }
+  await saveNote({ ...note, title: title ?? note.title }, content)
 }
 
 export function deleteNote(id: string): void {
@@ -400,6 +419,7 @@ export function deleteNote(id: string): void {
   db.run(`UPDATE volumes SET note_count = note_count - 1, updated_at = ? WHERE id = ?`, [deletedAt, note.volumeId])
   db.run(`UPDATE books SET note_count = note_count - 1, updated_at = ? WHERE id = ?`, [deletedAt, note.bookId])
   db.run(`DELETE FROM notes WHERE id = ?`, [id])
+  saveDB()
 }
 
 export function renameNote(id: string, newTitle: string): void {
@@ -410,6 +430,7 @@ export function renameNote(id: string, newTitle: string): void {
     now(),
     id,
   ])
+  saveDB()
 }
 
 export function listNotes(volumeId: string, sortBy: SortBy = 'updatedAt'): Note[] {
@@ -597,6 +618,7 @@ export function restoreFromTrash(id: string, type: 'book' | 'volume' | 'note'): 
       [id, '', bookId, name, '', t, t, 0, 0],
     )
   }
+  saveDB()
 }
 
 export function permanentDelete(id: string, type: 'book' | 'volume' | 'note'): void {
@@ -617,6 +639,7 @@ export function permanentDelete(id: string, type: 'book' | 'volume' | 'note'): v
 
   // 3. 从 trash 表删除记录
   db.run(`DELETE FROM trash WHERE id = ?`, [id])
+  saveDB()
 }
 
 export function cleanExpiredTrash(): number {
@@ -677,6 +700,7 @@ export function deleteTemplate(id: string): void {
   assertStorageReady()
   const db = getDB()
   db.run(`DELETE FROM templates WHERE id = ?`, [id])
+  saveDB()
 }
 
 export function createTemplate(name: string, content: string, scope: 'global' | 'book', bookId?: string): Template {
@@ -689,6 +713,7 @@ export function createTemplate(name: string, content: string, scope: 'global' | 
     [id, name, content, scope, bookId ?? null, t, t],
   )
   return { id, name, content, scope, bookId, createdAt: t, updatedAt: t }
+  saveDB()
 }
 
 export function updateTemplate(id: string, name: string, content: string): void {
@@ -700,6 +725,7 @@ export function updateTemplate(id: string, name: string, content: string): void 
     now(),
     id,
   ])
+  saveDB()
 }
 
 export function loadTemplate(id: string): Template | null {

@@ -7,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { DeleteConfirmModal } from '@/components/modals/DeleteConfirmModal'
 import { RenameModal } from '@/components/modals/RenameModal'
-import { loadNote, saveNote, deleteNote, createTemplate } from '@/engine/note-engine'
+import { loadNote, saveNoteById, deleteNote, createTemplate } from '@/engine/note-engine'
 import { exportNoteAsMarkdown, exportNoteAsHTML, exportNoteAsPDF } from '@/engine/export-engine'
 import { AUTO_SAVE_DELAY } from '@/config'
 import type { ViewMode } from '@/types'
@@ -94,20 +94,20 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
   const handleImageFile = useCallback(async (blob: Blob) => {
     if (!blob.type?.startsWith('image/')) return
     try {
-      const { compressImage, saveImage, enqueueImageSync } = await import('@/engine/image-engine')
+      const { compressImage, saveImage, getUnsyncedImageCount } = await import('@/engine/image-engine')
       const file = blob instanceof File ? blob : new globalThis.File([blob], 'image.png', { type: blob.type })
+      // compressImage 接受 File 或 Uint8Array，返回压缩后的 WebP 数据
       const compressed = await compressImage(file)
-      const { localPath } = await saveImage(bookId, compressed, noteId)
+      // saveImage(bookId, noteId, imageData, originalName) 返回 ImageInfo
+      const imageInfo = await saveImage(bookId, noteId, compressed.data, file.name)
+      // 构造可在 Markdown 中引用的本地路径
+      const localPath = `Books/${bookId}/Assets/Images/${imageInfo.webpName}`
       if (editorViewRef.current) {
         editorViewRef.current.dispatch({
           changes: { from: editorViewRef.current.state.selection.main.head, insert: `![](${localPath})` },
         })
       }
-      enqueueImageSync({
-        id: localPath.split('/').pop() || '', bookId, noteId: noteId || '',
-        localPath, size: compressed.size, addedAt: Date.now(),
-      })
-      setUnsyncedImages((await import('@/engine/image-engine')).getUnsyncedImageCount())
+      setUnsyncedImages(getUnsyncedImageCount(noteId))
     } catch (err) { console.error('处理图片失败:', err) }
   }, [bookId, noteId])
 
@@ -117,7 +117,8 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
     loadNoteData()
     const interval = setInterval(async () => {
       try {
-        setUnsyncedImages((await import('@/engine/image-engine')).getUnsyncedImageCount())
+        const { getUnsyncedImageCount } = await import('@/engine/image-engine')
+        setUnsyncedImages(getUnsyncedImageCount(noteId))
       } catch (err) {
         console.warn('[NoteEditor] 获取未同步图片数失败:', err)
       }
@@ -303,7 +304,7 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
 
   const doSave = useCallback(async (c?: string) => {
     if (!noteId) return
-    try { await saveNote(noteId, c ?? content, title); setLastSaved(Date.now()) }
+    try { await saveNoteById(noteId, c ?? content, title); setLastSaved(Date.now()) }
     catch (err) { console.error('保存失败:', err) }
     finally { setIsSaving(false) }
   }, [noteId, content, title])

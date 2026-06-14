@@ -256,7 +256,7 @@ export function HomePage() {
     }
     if (!expandedVolumeId || !expandedBookId) return
     try {
-      await createNote(expandedVolumeId, expandedBookId, name)
+      await createNote(expandedVolumeId, name)
       loadNotesForVolume(expandedVolumeId)
       loadVolumesForBook(expandedBookId)
       loadBooks()

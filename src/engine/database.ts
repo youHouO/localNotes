@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS volumes (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  note_count INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
 
@@ -83,6 +84,7 @@ CREATE TABLE IF NOT EXISTS images (
 CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
   scope TEXT NOT NULL DEFAULT 'global',
   book_id TEXT,
   created_at INTEGER NOT NULL,
@@ -163,6 +165,8 @@ function runMigrations(): void {
     { table: 'notes', column: 'image_count', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
     { table: 'images', column: 'synced', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
     { table: 'images', column: 'synced_at', type: 'INTEGER', default: 'NULL' },
+    { table: 'volumes', column: 'note_count', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
+    { table: 'templates', column: 'content', type: 'TEXT NOT NULL DEFAULT \'\'', default: '\'\'' },
   ]
 
   for (const m of migrations) {
