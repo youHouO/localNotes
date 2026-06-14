@@ -11,18 +11,8 @@ import type { Book, Volume, Note, Template } from '@/types'
 const TRASH_RETENTION_DAYS = 30
 const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000
 
-/** 是否启用笔记内容加密 */
-let encryptionEnabled = false
-
-/** 设置加密开关 */
-export function setEncryptionEnabled(enabled: boolean): void {
-  encryptionEnabled = enabled
-}
-
-/** 获取加密状态 */
-export function isEncryptionEnabled(): boolean {
-  return encryptionEnabled
-}
+/** 是否启用笔记内容加密（默认启用） */
+let encryptionEnabled = true
 
 function assertStorageReady() {
   if (!isStorageReady()) throw new Error('存储未初始化')
@@ -433,12 +423,13 @@ export function renameNote(id: string, newTitle: string): void {
   saveDB()
 }
 
-export function listNotes(volumeId: string, sortBy: SortBy = 'updatedAt'): Note[] {
+export function listNotes(volumeId: string, sortBy: SortBy = 'createdAt'): Note[] {
   assertStorageReady()
   const db = getDB()
   const orderColumn = sortBy === 'createdAt' ? 'created_at' : 'updated_at'
+  const orderDir = sortBy === 'createdAt' ? 'ASC' : 'DESC'
   const res = db.exec(
-    `SELECT id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count FROM notes WHERE volume_id = ? AND updated_at > 0 ORDER BY ${orderColumn} DESC`,
+    `SELECT id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count FROM notes WHERE volume_id = ? AND updated_at > 0 ORDER BY ${orderColumn} ${orderDir}`,
     [volumeId],
   )
   if (!res || res.length === 0) return []
@@ -482,7 +473,7 @@ export function searchNotes(keyword: string, bookId?: string, limit = 50): Searc
       SELECT n.id as note_id, n.title as note_title, v.id as volume_id, v.name as volume_name,
              b.id as book_id, b.name as book_name, snippet(notes_fts, 0, '【', '】', '...', 64) as snippet
       FROM notes_fts fts
-      JOIN notes n ON fts.rowid = n.id
+      JOIN notes n ON fts.note_id = n.id
       JOIN volumes v ON n.volume_id = v.id
       JOIN books b ON n.book_id = b.id
       WHERE notes_fts MATCH ? AND n.updated_at > 0

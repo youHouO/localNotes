@@ -239,6 +239,16 @@ export async function initDatabase(
       fts5Available = isFTS5Available()
       // Schema 迁移：确保所有列都存在
       runMigrations()
+
+      // 如果 FTS5 支持但表不存在，自动创建
+      if (!fts5Available) {
+        try {
+          db.exec(FTS5_SCHEMA_SQL)
+          fts5Available = true
+        } catch {
+          fts5Available = false
+        }
+      }
     }
   } catch (err) {
     db = null

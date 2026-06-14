@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import {
   listTrash, restoreFromTrash, permanentDelete,
   listTemplates, deleteTemplate, listBooks, listVolumes, listNotes,
-  setEncryptionEnabled, isEncryptionEnabled,
 } from '@/engine/note-engine'
 import { getKeyFingerprint } from '@/engine/encryption'
 import { exportBookAsZip } from '@/engine/export-engine'
@@ -33,10 +32,16 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
   }, [open, initialPage])
 
   const openSub = (page: SubPage) => setSubPage(page)
-  const handleClose = () => { setSubPage('main'); onClose() }
+  const handleClose = () => {
+    if (subPage === 'main') {
+      onClose()
+    } else {
+      setSubPage('main')
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setSubPage('main'); onClose() } }}>
       <DialogContent className="max-w-[520px] max-h-[80vh] overflow-hidden flex flex-col p-0">
         {subPage === 'main' && (
           <>
@@ -97,7 +102,7 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
               <button className="flex items-center justify-between w-full h-11 px-3 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors group" onClick={() => openSub('database')}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center"><Database className="h-4 w-4 text-gray-500" /></div>
-                  <div className="text-left"><div className="text-sm font-medium">数据库管理</div><div className="text-xs text-gray-400">查看数据库状态、重建索引</div></div>
+                  <div className="text-left"><div className="text-sm font-medium">数据库管理</div><div className="text-xs text-gray-400">查看数据库状态</div></div>
                 </div>
                 <span className="text-gray-300 text-sm">›</span>
               </button>
@@ -203,7 +208,7 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
             <DialogHeader className="relative">
               <Button variant="ghost" size="icon" className="h-8 w-8 absolute left-4 top-4" onClick={() => setSubPage('main')}><ArrowLeft className="h-4 w-4" /></Button>
               <DialogTitle>数据库管理</DialogTitle>
-              <DialogDescription>查看数据库状态、重建索引</DialogDescription>
+              <DialogDescription>查看数据库状态</DialogDescription>
             </DialogHeader>
             <div className="px-6 pb-5">
               <DatabaseSettingsContent />
@@ -673,14 +678,11 @@ function ExportSettingsContent() {
 function SecuritySettingsContent() {
   const [keyFingerprint, setKeyFingerprint] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [encryptionOn, setEncryptionOn] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const enabled = isEncryptionEnabled()
-        if (!cancelled) setEncryptionOn(enabled)
         const fp = await getKeyFingerprint()
         if (!cancelled) setKeyFingerprint(fp)
       } catch {
@@ -692,36 +694,14 @@ function SecuritySettingsContent() {
     return () => { cancelled = true }
   }, [])
 
-  const handleToggleEncryption = () => {
-    const next = !encryptionOn
-    try {
-      setEncryptionEnabled(next)
-      setEncryptionOn(next)
-    } catch (err) {
-      alert(`切换加密失败: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }
-
   return (
     <div className="space-y-4">
-      {/* 加密开关 */}
-      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-blue-800">笔记内容加密</div>
-          <div className="text-xs text-blue-600 mt-0.5">
-            {encryptionOn ? '已启用 - 笔记文件使用 AES-256-GCM 加密存储' : '未启用 - 笔记文件以标准格式存储'}
-          </div>
+      {/* 加密状态 */}
+      <div className="p-4 bg-blue-50 rounded-lg">
+        <div className="text-sm font-medium text-blue-800">笔记内容加密</div>
+        <div className="text-xs text-blue-600 mt-0.5">
+          所有笔记默认使用 AES-256-GCM 加密存储
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={encryptionOn}
-          onClick={handleToggleEncryption}
-          disabled={loading}
-          className={`w-10 h-6 rounded-full relative transition-colors disabled:opacity-50 ${encryptionOn ? 'bg-[hsl(var(--primary))]' : 'bg-gray-200'}`}
-        >
-          <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm transition-transform ${encryptionOn ? 'left-5' : 'left-1'}`} />
-        </button>
       </div>
 
       {/* 密钥状态 */}
@@ -755,7 +735,6 @@ function SecuritySettingsContent() {
 
 function DatabaseSettingsContent() {
   const [stats, setStats] = useState<{ books: number; volumes: number; notes: number } | null>(null)
-  const [indexRebuilding, setIndexRebuilding] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -775,36 +754,6 @@ function DatabaseSettingsContent() {
       console.error('加载统计失败:', err)
     }
   }, [])
-
-  const handleRebuildIndex = async () => {
-    setIndexRebuilding(true)
-    setMessage(null)
-    try {
-      // 动态导入 database 模块以避免循环依赖
-      const { getDB } = await import('@/engine/database')
-      const database = getDB()
-      if (!database) {
-        setMessage('数据库未初始化')
-        setIndexRebuilding(false)
-        return
-      }
-      // 重建 FTS 索引：删除并重新插入
-      database.run('DELETE FROM notes_fts')
-      const noteRows = database.exec('SELECT id, title, content FROM notes')
-      if (noteRows.length > 0) {
-        const stmt = database.prepare('INSERT INTO notes_fts (note_id, title, content) VALUES (?, ?, ?)')
-        for (const row of noteRows[0].values) {
-          stmt.run([row[0] as string, row[1] as string, row[2] as string])
-        }
-        stmt.free()
-      }
-      setMessage('搜索索引重建完成')
-    } catch (err) {
-      setMessage(`重建失败: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setIndexRebuilding(false)
-    }
-  }
 
   const handleClearSearchHistory = () => {
     try {
@@ -842,21 +791,6 @@ function DatabaseSettingsContent() {
 
       {/* 操作按钮 */}
       <div className="space-y-2">
-        <button
-          className="w-full flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg hover:bg-[hsl(var(--muted))]/80 transition-colors disabled:opacity-50"
-          onClick={handleRebuildIndex}
-          disabled={indexRebuilding}
-        >
-          <div className="flex items-center gap-3">
-            <Database className="h-4 w-4 text-gray-500" />
-            <div className="text-left">
-              <div className="text-sm font-medium">重建搜索索引</div>
-              <div className="text-xs text-gray-400">重新构建全文搜索索引数据</div>
-            </div>
-          </div>
-          <span className="text-xs text-gray-400">{indexRebuilding ? '重建中...' : '执行'}</span>
-        </button>
-
         <button
           className="w-full flex items-center justify-between p-3 bg-[hsl(var(--muted))] rounded-lg hover:bg-[hsl(var(--muted))]/80 transition-colors"
           onClick={handleClearSearchHistory}
