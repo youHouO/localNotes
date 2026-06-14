@@ -17,9 +17,10 @@ import {
   createVolume, listVolumes, renameVolume, deleteVolume,
   createNote, listNotes, deleteNote, renameNote,
 } from '@/engine/note-engine'
-import { initStorage, readFile, writeFile, getFallbackReason, initStorageWithBackend } from '@/engine/storage'
+import { initStorage, readFile, writeFile, getFallbackReason, initStorageWithBackend, initStorageWithHandle } from '@/engine/storage'
 import { initDatabase } from '@/engine/database'
 import { createBuiltinNotes } from '@/engine/builtin-notes'
+import { loadHandle } from '@/engine/storage-handle'
 import { NoteEditor } from '@/components/NoteEditor'
 import { SettingsModal } from '@/components/modals/SettingsModal'
 import { SearchModal } from '@/components/modals/SearchModal'
@@ -85,7 +86,17 @@ export function HomePage() {
 
   const doInit = async () => {
     try {
-      await initStorage()
+      // 先检查是否有已保存的 handle（不弹系统对话框）
+      const savedHandle = await loadHandle()
+      if (savedHandle) {
+        // 有已保存的 handle，直接用 initStorage 恢复（内部会验证权限）
+        await initStorage()
+      } else {
+        // 没有已保存的 handle，直接显示欢迎页让用户选择
+        setStartupPhase('picking')
+        return
+      }
+
       await initDatabase(
         async (path) => {
           try { return await readFile(path) } catch { return null }
@@ -109,26 +120,42 @@ export function HomePage() {
       setStartupPhase('ready')
     } catch (err) {
       console.error('初始化失败:', err)
-      // 用户取消选择目录，显示 picker
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        setStartupPhase('picking')
-        return
-      }
-      // 浏览器不支持 FSA API，自动降级
-      if (err instanceof Error && err.message.includes('不支持文件系统访问')) {
-        setStartupPhase('picking')
-        setFallbackReason(err.message)
-        return
-      }
-      setErrorMsg(err instanceof Error ? err.message : String(err))
-      setStartupPhase('ready')
+      // handle 权限不足或其他错误，显示欢迎页让用户重新选择
+      setStartupPhase('picking')
     }
   }
 
   const handlePickerReady = async () => {
     setStartupPhase('init')
     setErrorMsg(null)
-    await doInit()
+    try {
+      // WelcomePicker 已经调用了 initStorageWithHandle，存储已就绪
+      await initDatabase(
+        async (path) => {
+          try { return await readFile(path) } catch { return null }
+        },
+        async (path, data) => { await writeFile(path, data) }
+      )
+      setStorageReady(true)
+      setFallbackReason(null)
+
+      try {
+        const existingBooks = listBooks()
+        if (existingBooks.length === 0) {
+          setStartupPhase('creating-builtins')
+          await createBuiltinNotes()
+        }
+      } catch (err) {
+        console.error('创建内置笔记失败:', err)
+      }
+
+      loadBooks()
+      setStartupPhase('ready')
+    } catch (err) {
+      console.error('初始化数据库失败:', err)
+      setErrorMsg(err instanceof Error ? err.message : String(err))
+      setStartupPhase('picking')
+    }
   }
 
   const handlePickerFallback = async () => {
