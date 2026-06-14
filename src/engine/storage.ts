@@ -110,9 +110,10 @@ export async function initStorageWithBackend(
  */
 export async function initStorageWithHandle(
   handle: FileSystemDirectoryHandle,
+  options?: { defaultPath?: boolean },
 ): Promise<void> {
   const mod = await import('./storage-fsaa')
-  await mod.initStorageWithHandle(handle)
+  await mod.initStorageWithHandle(handle, options)
   cachedModule = mod
   backend = 'fsaa'
   fallbackReason = null

@@ -17,7 +17,15 @@ export async function initStorage(options?: { defaultPath?: boolean }): Promise<
   if (savedHandle) {
     const hasPermission = await requestHandlePermission(savedHandle)
     if (hasPermission) {
-      rootDirHandle = savedHandle
+      // 如果启用 defaultPath 且恢复的 handle 不是 LocalNotes，创建子目录
+      if (options?.defaultPath && savedHandle.name !== 'LocalNotes') {
+        const localNotesHandle = await savedHandle.getDirectoryHandle('LocalNotes', { create: true })
+        await saveHandle(localNotesHandle)
+        rootDirHandle = localNotesHandle
+        console.log('[storage-fsaa] 已创建 LocalNotes 子目录:', savedHandle.name + '/LocalNotes')
+      } else {
+        rootDirHandle = savedHandle
+      }
       return
     }
   }
