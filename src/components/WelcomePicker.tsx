@@ -41,8 +41,10 @@ export function WelcomePicker({
       })
       // 将 handle 传给 storage 层初始化，自动创建 LocalNotes 子目录
       await initStorageWithHandle(handle, { defaultPath: true })
+      console.log('[WelcomePicker] 存储初始化成功，根目录:', handle.name + '/LocalNotes')
       onReady()
     } catch (err) {
+      console.error('[WelcomePicker] 选择文件夹失败:', err)
       if (err instanceof DOMException && err.name === 'AbortError') {
         setError('需要选择文件夹才能继续使用 LocalNotes')
       } else {
@@ -132,25 +134,14 @@ export function WelcomePicker({
           选择数据存储位置
         </h1>
         <p className="text-gray-500 mb-6">
-          点击下方按钮后，系统会弹出文件夹选择器。选择任意文件夹后，LocalNotes 会自动在其中创建 <span className="font-medium text-gray-700">LocalNotes</span> 子文件夹来存放数据。
+          点击下方按钮，在弹出的窗口中选择一个文件夹（推荐选择「文档」），LocalNotes 会自动在其中创建 <span className="font-medium text-gray-700">LocalNotes</span> 子文件夹存放数据。
         </p>
-
-        {/* 说明卡片 */}
-        <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <div className="text-left text-sm text-blue-800">
-              <p className="font-medium">推荐做法</p>
-              <p className="mt-1">在弹出的选择器中选择「文档」文件夹，数据将保存在 <span className="font-semibold">文档/LocalNotes/</span> 下，方便查找和备份。</p>
-            </div>
-          </div>
-        </div>
 
         {/* 选择文件夹按钮 */}
         <button
           onClick={handlePickDirectory}
           disabled={isPicking}
-          className="w-full text-left bg-white border-2 border-[hsl(var(--primary))] rounded-xl p-4 mb-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left bg-white border-2 border-[hsl(var(--primary))] rounded-xl p-4 mb-6 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
@@ -188,15 +179,6 @@ export function WelcomePicker({
         )}
 
         <div className="space-y-3">
-          <Button
-            className="w-full h-11 text-base"
-            onClick={handlePickDirectory}
-            disabled={isPicking}
-          >
-            <Check className="w-5 h-5 mr-2" />
-            {isPicking ? '正在打开...' : '确认并继续'}
-          </Button>
-
           <Button
             variant="outline"
             className="w-full h-11 text-base"
