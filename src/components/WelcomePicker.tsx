@@ -10,6 +10,7 @@ import {
   Info,
   ShieldAlert,
 } from 'lucide-react'
+import { initStorageWithHandle } from '@/engine/storage'
 
 interface WelcomePickerProps {
   onReady: () => void
@@ -39,7 +40,8 @@ export function WelcomePicker({
         mode: 'readwrite',
         startIn: 'documents',
       })
-      // 将 handle 传递给 storage-fsaa
+      // 将 handle 传给 storage 层初始化，自动创建 LocalNotes 子目录
+      await initStorageWithHandle(handle, { defaultPath: true })
       onReady()
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {

@@ -106,6 +106,7 @@ export function HomePage() {
       }
 
       loadBooks()
+      setStartupPhase('ready')
     } catch (err) {
       console.error('初始化失败:', err)
       // 用户取消选择目录，显示 picker
@@ -113,11 +114,14 @@ export function HomePage() {
         setStartupPhase('picking')
         return
       }
-      setErrorMsg(err instanceof Error ? err.message : String(err))
-    } finally {
-      if (startupPhase !== 'picking') {
-        setStartupPhase('ready')
+      // 浏览器不支持 FSA API，自动降级
+      if (err instanceof Error && err.message.includes('不支持文件系统访问')) {
+        setStartupPhase('picking')
+        setFallbackReason(err.message)
+        return
       }
+      setErrorMsg(err instanceof Error ? err.message : String(err))
+      setStartupPhase('ready')
     }
   }
 

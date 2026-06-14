@@ -104,6 +104,22 @@ export async function initStorageWithBackend(
   }
 }
 
+/**
+ * 使用用户选择的目录 handle 初始化 FSA 存储
+ * 用于 WelcomePicker 中用户手动选择目录后
+ */
+export async function initStorageWithHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  const mod = await import('./storage-fsaa')
+  await mod.initStorageWithHandle(handle)
+  cachedModule = mod
+  backend = 'fsaa'
+  fallbackReason = null
+  // 重置初始化锁，允许后续正常调用 initStorage
+  initPromise = null
+}
+
 function getModule() {
   if (!cachedModule) {
     throw new Error('存储未初始化，请先调用 initStorage()')

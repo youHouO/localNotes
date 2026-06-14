@@ -80,6 +80,26 @@ export async function initStorageWithDefaultPath(): Promise<void> {
 }
 
 /**
+ * 使用指定的目录 handle 初始化存储
+ * 用于 WelcomePicker 中用户手动选择目录后
+ */
+export async function initStorageWithHandle(
+  handle: FileSystemDirectoryHandle,
+  options?: { defaultPath?: boolean },
+): Promise<void> {
+  let targetHandle = handle
+
+  // 如果启用默认路径，在选中的目录下创建/获取 LocalNotes 子目录
+  if (options?.defaultPath) {
+    targetHandle = await handle.getDirectoryHandle('LocalNotes', { create: true })
+  }
+
+  // 保存 handle 到 IndexedDB
+  await saveHandle(targetHandle)
+  rootDirHandle = targetHandle
+}
+
+/**
  * 获取当前根目录名称
  */
 export function getRootPath(): string | null {
