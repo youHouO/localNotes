@@ -149,6 +149,38 @@ let fts5Available: boolean | null = null
  * @param readFile 从 storage 读取文件的函数
  * @param writeFile 向 storage 写入文件的函数
  */
+/**
+ * Schema 迁移：为旧数据库添加缺失的列
+ * 使用 ALTER TABLE ADD COLUMN IF NOT EXISTS（SQLite 3.35+ 支持）
+ * 降级方案：先检查列是否存在，不存在再添加
+ */
+function runMigrations(): void {
+  if (!db) return
+
+  const migrations: { table: string; column: string; type: string; default: string }[] = [
+    { table: 'books', column: 'note_count', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
+    { table: 'notes', column: 'word_count', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
+    { table: 'notes', column: 'image_count', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
+    { table: 'images', column: 'synced', type: 'INTEGER NOT NULL DEFAULT 0', default: '0' },
+    { table: 'images', column: 'synced_at', type: 'INTEGER', default: 'NULL' },
+  ]
+
+  for (const m of migrations) {
+    try {
+      // 检查列是否已存在
+      const cols = db.exec(`PRAGMA table_info(${m.table})`)
+      if (cols && cols[0] && cols[0].values) {
+        const exists = cols[0].values.some((row: unknown[]) => row[1] === m.column)
+        if (exists) continue
+      }
+      // 列不存在，添加
+      db.exec(`ALTER TABLE ${m.table} ADD COLUMN ${m.column} ${m.type}`)
+    } catch (err) {
+      console.warn(`Schema 迁移失败 (${m.table}.${m.column}):`, err)
+    }
+  }
+}
+
 export async function initDatabase(
   readFile: (path: string) => Promise<Uint8Array | null>,
   writeFile: (path: string, data: Uint8Array) => Promise<void>,
@@ -198,9 +230,11 @@ export async function initDatabase(
     // 4. 缓存 writeFile 以便后续 saveDB 使用
     writeFileFn = writeFile
 
-    // 5. 若从已有数据加载，检测 FTS5 支持情况
+    // 5. 若从已有数据加载，检测 FTS5 支持情况并执行 schema 迁移
     if (existingData) {
       fts5Available = isFTS5Available()
+      // Schema 迁移：确保所有列都存在
+      runMigrations()
     }
   } catch (err) {
     db = null
