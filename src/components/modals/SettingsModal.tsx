@@ -11,7 +11,7 @@ import {
   listTrash, restoreFromTrash, permanentDelete,
   listTemplates, deleteTemplate, listBooks,
 } from '@/engine/note-engine'
-import { exportRawKey, sha256, getKey } from '@/engine/encryption'
+import { getKeyFingerprint, sha256 } from '@/engine/encryption'
 import { exportBookAsZip } from '@/engine/export-engine'
 import type { TrashItem } from '@/engine/note-engine'
 import type { Template, Book } from '@/types'
@@ -611,30 +611,16 @@ function ExportSettingsContent() {
 
 function SecuritySettingsContent() {
   const [keyFingerprint, setKeyFingerprint] = useState<string | null>(null)
-  const [keyInitialized, setKeyInitialized] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const rawKey = await exportRawKey()
-        if (cancelled) return
-        if (rawKey.length === 0) {
-          setKeyInitialized(false)
-          setKeyFingerprint(null)
-        } else {
-          const hash = await sha256(rawKey)
-          if (cancelled) return
-          setKeyInitialized(true)
-          setKeyFingerprint(hash.slice(0, 16))
-        }
+        const fp = await getKeyFingerprint()
+        if (!cancelled) setKeyFingerprint(fp)
       } catch {
-        if (!cancelled) {
-          setKeyInitialized(false)
-          setKeyFingerprint(null)
-        }
+        if (!cancelled) setKeyFingerprint(null)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -642,55 +628,16 @@ function SecuritySettingsContent() {
     return () => { cancelled = true }
   }, [])
 
-  const handleRegenerate = async () => {
-    setActionLoading('regenerate')
-    try {
-      localStorage.removeItem('localnotes_aes_key')
-      await getKey()
-      const rawKey = await exportRawKey()
-      if (rawKey.length === 0) {
-        setKeyInitialized(false)
-        setKeyFingerprint(null)
-      } else {
-        const hash = await sha256(rawKey)
-        setKeyInitialized(true)
-        setKeyFingerprint(hash.slice(0, 16))
-      }
-    } catch (err) {
-      console.error('重新生成密钥失败:', err)
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleExport = async () => {
-    setActionLoading('export')
-    try {
-      const rawKey = await exportRawKey()
-      if (rawKey.length === 0) return
-      let binary = ''
-      for (let i = 0; i < rawKey.length; i++) {
-        binary += String.fromCharCode(rawKey[i])
-      }
-      const base64 = btoa(binary)
-      await navigator.clipboard.writeText(base64)
-    } catch (err) {
-      console.error('导出密钥失败:', err)
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
   return (
     <div className="space-y-4">
       {/* 密钥状态 */}
       <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="text-sm font-medium text-blue-800 mb-2">密钥状态</div>
+        <div className="text-sm font-medium text-blue-800 mb-2">加密状态</div>
         {loading ? (
           <div className="text-xs text-blue-600">加载中...</div>
-        ) : keyInitialized ? (
+        ) : keyFingerprint ? (
           <div className="text-xs text-blue-600">
-            密钥指纹: {keyFingerprint}...
+            已启用（密钥指纹: {keyFingerprint}...）
           </div>
         ) : (
           <div className="text-xs text-orange-600">未初始化</div>
@@ -701,26 +648,8 @@ function SecuritySettingsContent() {
       <div className="p-4 bg-blue-50 rounded-lg">
         <div className="text-sm font-medium text-blue-800 mb-1">AES-256-GCM 加密</div>
         <div className="text-xs text-blue-600 leading-relaxed">
-          所有笔记和图片均使用 AES-256-GCM 算法加密存储。密钥通过 PBKDF2 (100,000 iterations) 派生，确保安全性。
+          所有笔记均使用 AES-256-GCM 算法加密存储。密钥由软件内置统一生成（PBKDF2 派生），无需用户设置密码，保证数据不是明文即可。
         </div>
-      </div>
-
-      {/* 操作按钮 */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleRegenerate}
-          disabled={actionLoading !== null}
-          className="px-4 py-2 text-sm font-medium rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {actionLoading === 'regenerate' ? '处理中...' : '重新生成密钥'}
-        </button>
-        <button
-          onClick={handleExport}
-          disabled={actionLoading !== null || !keyInitialized}
-          className="px-4 py-2 text-sm font-medium rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {actionLoading === 'export' ? '导出中...' : '导出密钥'}
-        </button>
       </div>
 
       <div className="text-sm text-gray-500 leading-relaxed">

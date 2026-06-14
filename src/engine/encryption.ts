@@ -1,23 +1,17 @@
 /**
  * 加密模块
  * 基于 Web Crypto API 实现 AES-GCM 加密与 SHA-256 哈希
+ *
+ * 加密方案：所有用户统一使用软件内置固定密钥（PBKDF2 派生），
+ * 保证数据不是明文存储即可，不需要用户设置/记住密码。
  */
 
 // ============================================================
 // 常量定义
 // ============================================================
 
-/** localStorage 中存储原始密钥的键名 */
-const LOCAL_STORAGE_KEY = 'localnotes_aes_key'
-
-/** 固定密码，用于 PBKDF2 派生密钥（作为 fallback） */
-const FALLBACK_PASSWORD = 'LocalNotes-Secure-Key-Derivation-2024'
-
-/** AES-GCM 算法参数 */
-const AES_GCM_PARAMS: AesKeyGenParams & AesGcmParams = {
-  name: 'AES-GCM',
-  length: 256,
-}
+/** 软件内置固定密码，用于 PBKDF2 派生统一密钥 */
+const BUILT_IN_PASSWORD = 'LocalNotes-Secure-Key-Derivation-2024'
 
 /** PBKDF2 算法参数 */
 const PBKDF2_PARAMS: Pbkdf2Params = {
@@ -31,7 +25,7 @@ const PBKDF2_PARAMS: Pbkdf2Params = {
 // 模块级状态
 // ============================================================
 
-/** 缓存的 CryptoKey（避免重复导入/生成） */
+/** 缓存的 CryptoKey（避免重复派生） */
 let cachedKey: CryptoKey | null = null
 
 // ============================================================
@@ -39,12 +33,10 @@ let cachedKey: CryptoKey | null = null
 // ============================================================
 
 /**
- * 获取或创建 AES-GCM 密钥
+ * 获取统一的 AES-GCM 密钥
  *
- * 逻辑：
- * 1. 若内存中已缓存密钥，直接返回
- * 2. 尝试从 localStorage 读取已保存的原始密钥并导入
- * 3. 若 localStorage 中无密钥，则随机生成新密钥并保存到 localStorage
+ * 使用 PBKDF2 从软件内置固定密码派生 256 位 AES-GCM 密钥。
+ * 所有用户/设备使用相同的密钥，保证数据不是明文即可。
  *
  * @returns AES-GCM CryptoKey
  */
@@ -54,25 +46,9 @@ export async function getKey(): Promise<CryptoKey> {
   }
 
   try {
-    // 1. 尝试从 localStorage 恢复密钥
-    const storedRaw = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (storedRaw) {
-      const rawKey = base64ToUint8Array(storedRaw)
-      cachedKey = await crypto.subtle.importKey(
-        'raw',
-        rawKey,
-        { name: 'AES-GCM' },
-        false, // 不可导出（已存 localStorage 中）
-        ['encrypt', 'decrypt'],
-      )
-      return cachedKey
-    }
-
-    // 2. 无存储密钥时，使用 PBKDF2 从固定密码派生确定性密钥
-    //    这样即使清空 localStorage，同一设备/浏览器仍能解密旧数据
     const passwordKey = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(FALLBACK_PASSWORD),
+      new TextEncoder().encode(BUILT_IN_PASSWORD),
       { name: 'PBKDF2' },
       false,
       ['deriveBits'],
@@ -88,15 +64,8 @@ export async function getKey(): Promise<CryptoKey> {
       'raw',
       derivedBits,
       { name: 'AES-GCM' },
-      true, // 允许导出以便保存到 localStorage
+      true, // 允许导出，用于生成指纹
       ['encrypt', 'decrypt'],
-    )
-
-    // 3. 将新密钥保存到 localStorage，供下次快速加载
-    const exportableRaw = await crypto.subtle.exportKey('raw', cachedKey)
-    localStorage.setItem(
-      LOCAL_STORAGE_KEY,
-      uint8ArrayToBase64(new Uint8Array(exportableRaw)),
     )
 
     return cachedKey
@@ -108,19 +77,18 @@ export async function getKey(): Promise<CryptoKey> {
 }
 
 /**
- * 导出原始密钥字节
- * @param key 可选的 CryptoKey，默认使用 getKey() 获取
- * @returns 32 字节原始密钥
+ * 获取密钥指纹（用于 UI 显示，证明加密已启用）
+ * @returns 密钥的 SHA-256 哈希前 16 位
  */
-export async function exportRawKey(key?: CryptoKey): Promise<Uint8Array> {
+export async function getKeyFingerprint(): Promise<string> {
   try {
-    const targetKey = key ?? (await getKey())
-    const raw = await crypto.subtle.exportKey('raw', targetKey)
-    return new Uint8Array(raw)
+    const key = await getKey()
+    const raw = await crypto.subtle.exportKey('raw', key)
+    const hash = await sha256(new Uint8Array(raw))
+    return hash.slice(0, 16)
   } catch (err) {
-    console.error('导出原始密钥失败:', err)
-    // 返回空 Uint8Array 作为安全 fallback，避免调用方崩溃
-    return new Uint8Array(0)
+    console.error('获取密钥指纹失败:', err)
+    return 'unknown'
   }
 }
 
@@ -220,28 +188,4 @@ function uint8ArrayToHex(arr: Uint8Array): string {
   return Array.from(arr)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
-}
-
-/**
- * Base64 字符串转 Uint8Array
- */
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64)
-  const len = binary.length
-  const arr = new Uint8Array(len)
-  for (let i = 0; i < len; i++) {
-    arr[i] = binary.charCodeAt(i)
-  }
-  return arr
-}
-
-/**
- * Uint8Array 转 Base64 字符串
- */
-function uint8ArrayToBase64(arr: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < arr.length; i++) {
-    binary += String.fromCharCode(arr[i])
-  }
-  return btoa(binary)
 }

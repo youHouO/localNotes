@@ -31,6 +31,7 @@ vi.mock('@/engine/encryption', () => ({
   sha256: vi.fn().mockResolvedValue('abc123hash'),
   getKey: vi.fn().mockResolvedValue({}),
   exportRawKey: vi.fn().mockResolvedValue(new Uint8Array(32)),
+  getKeyFingerprint: vi.fn().mockResolvedValue('abcdef1234567890'),
 }))
 
 // ==================== Imports (after mocks) ====================

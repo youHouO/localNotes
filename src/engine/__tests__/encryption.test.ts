@@ -31,7 +31,7 @@ const mockLocalStorageObj = {
 
 import {
   encryptString, decryptToString, sha256,
-  getKey, exportRawKey,
+  getKey, getKeyFingerprint,
 } from '@/engine/encryption'
 
 // 辅助：创建 mock AES-GCM 密钥
@@ -47,48 +47,27 @@ describe('encryption', () => {
 
   // ==================== getKey ====================
   describe('getKey', () => {
-    it('localStorage 无密钥时应生成新密钥并保存', async () => {
+    it('应通过 PBKDF2 从内置密码派生密钥', async () => {
       const mockKey = createMockKey()
       mockCryptoSubtle.importKey.mockResolvedValue(mockKey)
-      mockCryptoSubtle.digest.mockResolvedValue(new Uint8Array(32))
       mockCryptoSubtle.deriveBits.mockResolvedValue(new Uint8Array(32))
-      mockCryptoSubtle.exportKey.mockResolvedValue(new Uint8Array(32))
 
       const key = await getKey()
 
       expect(mockCryptoSubtle.importKey).toHaveBeenCalled()
       expect(mockCryptoSubtle.deriveBits).toHaveBeenCalled()
-      // 验证 localStorage 中保存了密钥
-      expect(mockLocalStorage['localnotes_aes_key']).toBeDefined()
       expect(key).toBe(mockKey)
-    })
-
-    it('localStorage 有密钥时应导入并返回', async () => {
-      // 预设 localStorage 中的密钥
-      const rawKey = new Uint8Array(32).fill(1)
-      mockLocalStorage['localnotes_aes_key'] = btoa(String.fromCharCode(...rawKey))
-
-      const mockKey = createMockKey()
-      mockCryptoSubtle.importKey.mockResolvedValue(mockKey)
-
-      const key = await getKey()
-
-      // importKey 应被调用（从 localStorage 恢复密钥）
-      expect(key).toStrictEqual(mockKey)
     })
 
     it('第二次调用应返回缓存的密钥', async () => {
       const mockKey = createMockKey()
       mockCryptoSubtle.importKey.mockResolvedValue(mockKey)
-      mockCryptoSubtle.digest.mockResolvedValue(new Uint8Array(32))
       mockCryptoSubtle.deriveBits.mockResolvedValue(new Uint8Array(32))
-      mockCryptoSubtle.exportKey.mockResolvedValue(new Uint8Array(32))
 
       const key1 = await getKey()
       const key2 = await getKey()
 
       expect(key1).toBe(key2)
-      // 验证两次返回相同的密钥对象
     })
   })
 
@@ -189,24 +168,24 @@ describe('encryption', () => {
     })
   })
 
-  // ==================== exportRawKey ====================
-  describe('exportRawKey', () => {
-    it('应导出 32 字节的原始密钥', async () => {
+  // ==================== getKeyFingerprint ====================
+  describe('getKeyFingerprint', () => {
+    it('应返回密钥 SHA-256 哈希的前 16 位', async () => {
       const rawKey = new Uint8Array(32).fill(42)
       mockCryptoSubtle.exportKey.mockResolvedValue(rawKey)
+      mockCryptoSubtle.digest.mockResolvedValue(new Uint8Array(32).fill(0xab))
 
-      const result = await exportRawKey(createMockKey())
+      const result = await getKeyFingerprint()
 
-      expect(result).toEqual(rawKey)
-      expect(result.length).toBe(32)
+      expect(result).toBe('abababababababababababababababab'.slice(0, 16))
     })
 
-    it('导出失败时应返回空 Uint8Array', async () => {
+    it('导出失败时应返回 unknown', async () => {
       mockCryptoSubtle.exportKey.mockRejectedValue(new Error('not extractable'))
 
-      const result = await exportRawKey(createMockKey())
+      const result = await getKeyFingerprint()
 
-      expect(result).toEqual(new Uint8Array(0))
+      expect(result).toBe('unknown')
     })
   })
 })
