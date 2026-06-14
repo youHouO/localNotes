@@ -31,8 +31,10 @@ export function DeleteConfirmModal({
   title = '确认删除',
   description = '删除后将移至回收站，保留30天',
   confirmLabel = '删除',
-  permanent: _permanent = false,
+  permanent = false,
 }: DeleteConfirmModalProps) {
+  const isPermanent = permanent
+
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[400px]">
@@ -44,12 +46,13 @@ export function DeleteConfirmModal({
           <Button variant="outline" onClick={onClose}>取消</Button>
           <Button
             variant='destructive'
+            className={isPermanent ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
             onClick={() => {
               onConfirm()
               onClose()
             }}
           >
-            {confirmLabel}
+            {isPermanent ? '永久删除' : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

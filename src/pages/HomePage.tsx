@@ -97,27 +97,7 @@ export function HomePage() {
         return
       }
 
-      await initDatabase(
-        async (path) => {
-          try { return await readFile(path) } catch { return null }
-        },
-        async (path, data) => { await writeFile(path, data) }
-      )
-      setStorageReady(true)
-      setFallbackReason(null)
-
-      try {
-        const existingBooks = listBooks()
-        if (existingBooks.length === 0) {
-          setStartupPhase('creating-builtins')
-          await createBuiltinNotes()
-        }
-      } catch (err) {
-        console.error('创建内置笔记失败:', err)
-      }
-
-      loadBooks()
-      setStartupPhase('ready')
+      await finishInit()
     } catch (err) {
       console.error('初始化失败:', err)
       // handle 权限不足或其他错误，显示欢迎页让用户重新选择
@@ -130,27 +110,7 @@ export function HomePage() {
     setErrorMsg(null)
     try {
       // WelcomePicker 已经调用了 initStorageWithHandle，存储已就绪
-      await initDatabase(
-        async (path) => {
-          try { return await readFile(path) } catch { return null }
-        },
-        async (path, data) => { await writeFile(path, data) }
-      )
-      setStorageReady(true)
-      setFallbackReason(null)
-
-      try {
-        const existingBooks = listBooks()
-        if (existingBooks.length === 0) {
-          setStartupPhase('creating-builtins')
-          await createBuiltinNotes()
-        }
-      } catch (err) {
-        console.error('创建内置笔记失败:', err)
-      }
-
-      loadBooks()
-      setStartupPhase('ready')
+      await finishInit()
     } catch (err) {
       console.error('初始化数据库失败:', err)
       setErrorMsg(err instanceof Error ? err.message : String(err))
@@ -164,26 +124,7 @@ export function HomePage() {
     // 强制使用 OPFS 后端
     try {
       await initStorageWithBackend('opfs')
-      await initDatabase(
-        async (path) => {
-          try { return await readFile(path) } catch { return null }
-        },
-        async (path, data) => { await writeFile(path, data) }
-      )
-      setStorageReady(true)
-      setFallbackReason(null)
-
-      try {
-        const existingBooks = listBooks()
-        if (existingBooks.length === 0) {
-          setStartupPhase('creating-builtins')
-          await createBuiltinNotes()
-        }
-      } catch (err) {
-        console.error('创建内置笔记失败:', err)
-      }
-
-      loadBooks()
+      await finishInit()
     } catch (err) {
       console.error('降级初始化失败:', err)
       setErrorMsg(err instanceof Error ? err.message : String(err))
@@ -199,6 +140,34 @@ export function HomePage() {
       console.error('加载书列表失败:', err)
     }
   }, [])
+
+  /**
+   * 公共初始化完成逻辑：初始化数据库 → 创建内置笔记 → 加载书列表 → 标记就绪
+   * doInit、handlePickerReady、handlePickerFallback 共用
+   */
+  const finishInit = useCallback(async () => {
+    await initDatabase(
+      async (path) => {
+        try { return await readFile(path) } catch { return null }
+      },
+      async (path, data) => { await writeFile(path, data) }
+    )
+    setStorageReady(true)
+    setFallbackReason(null)
+
+    try {
+      const existingBooks = listBooks()
+      if (existingBooks.length === 0) {
+        setStartupPhase('creating-builtins')
+        await createBuiltinNotes()
+      }
+    } catch (err) {
+      console.error('创建内置笔记失败:', err)
+    }
+
+    loadBooks()
+    setStartupPhase('ready')
+  }, [loadBooks])
 
   const loadVolumesForBook = useCallback((bookId: string) => {
     try {

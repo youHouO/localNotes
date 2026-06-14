@@ -12,7 +12,7 @@ import {
   listTemplates, deleteTemplate, listBooks, listVolumes, listNotes,
   setEncryptionEnabled, isEncryptionEnabled,
 } from '@/engine/note-engine'
-import { getKeyFingerprint, sha256 } from '@/engine/encryption'
+import { getKeyFingerprint } from '@/engine/encryption'
 import { exportBookAsZip } from '@/engine/export-engine'
 import type { TrashItem } from '@/engine/note-engine'
 import type { Template, Book } from '@/types'
@@ -707,9 +707,9 @@ function SecuritySettingsContent() {
       {/* 加密开关 */}
       <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
         <div>
-          <div className="text-sm font-medium text-blue-800">端到端加密</div>
+          <div className="text-sm font-medium text-blue-800">笔记内容加密</div>
           <div className="text-xs text-blue-600 mt-0.5">
-            {encryptionOn ? '已启用 - 所有笔记数据均使用 AES-256-GCM 加密存储' : '未启用 - 笔记数据以明文存储'}
+            {encryptionOn ? '已启用 - 笔记文件使用 AES-256-GCM 加密存储' : '未启用 - 笔记文件以标准格式存储'}
           </div>
         </div>
         <button
@@ -897,7 +897,7 @@ function AboutSettingsContent() {
         <div className="text-sm text-gray-400">版本 1.0.0</div>
       </div>
       <div className="text-xs text-gray-400 leading-relaxed max-w-[300px] mx-auto">
-        一款完全本地优先、端到端加密的笔记应用。你的数据，你做主。
+        一款完全本地优先的笔记应用。你的数据，你做主。
       </div>
     </div>
   )

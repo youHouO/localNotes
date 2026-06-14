@@ -301,7 +301,8 @@ export async function generateManifest(): Promise<Record<string, string>> {
       const bookId = row[1] as string
       const localPath = row[2] as string
       // 图片文件路径: 使用数据库中记录的 local_path，或按约定生成
-      const filePath = localPath || `books/${bookId}/images/${imageId}`
+      // 约定路径格式: Books/{bookId}/Assets/Images/{imageId}.webp
+      const filePath = localPath || `Books/${bookId}/Assets/Images/${imageId}.webp`
       // 图片的 content_hash 使用 id 作为标识（图片内容不变时 id 不变）
       manifest[filePath] = imageId
     }

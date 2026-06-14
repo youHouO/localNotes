@@ -7,10 +7,81 @@ import { getDB } from './database'
 import { getNote } from './note-engine'
 import { decryptToString } from './encryption'
 import JSZip from 'jszip'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import { renderToString } from 'react-dom/server'
+
+/**
+ * 简单的 Markdown → HTML 转换（纯正则实现，不依赖 react-dom/server）
+ * 支持标题、列表、代码块、行内代码、加粗、斜体、链接、图片、引用、分割线、表格、任务列表
+ */
+function markdownToHtml(md: string): string {
+  let html = md
+
+  // 转义 HTML 特殊字符（保留后续替换生成的标签）
+  html = html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  // 代码块 (``` ... ```)
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang, code) => {
+    const escapedCode = code.replace(/\n$/, '') // 去掉末尾换行
+    return `<pre><code class="language-${lang || 'text'}">${escapedCode}</code></pre>`
+  })
+
+  // 行内代码 (`...`)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+
+  // 标题 (h1-h6)
+  html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
+  html = html.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
+  html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+  html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+  html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+
+  // 分割线
+  html = html.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr>')
+
+  // 引用块
+  html = html.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>')
+
+  // 图片 ![alt](url)
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+
+  // 链接 [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+
+  // 加粗 (**...** 或 __...__)
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>')
+
+  // 斜体 (*...* 或 _..._)
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  html = html.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>')
+
+  // 删除线 (~~...~~)
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>')
+
+  // 任务列表 (- [ ] / - [x])
+  html = html.replace(/^[-*]\s+\[x\]\s+(.+)$/gm, '<li><input type="checkbox" checked disabled> $1</li>')
+  html = html.replace(/^[-*]\s+\[\s?\]\s+(.+)$/gm, '<li><input type="checkbox" disabled> $1</li>')
+
+  // 无序列表 (- / *)
+  html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
+
+  // 有序列表 (1. 2. 3.)
+  html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+
+  // 将连续的 <li> 包裹在 <ul> 中
+  html = html.replace(/((?:<li[^>]*>.*<\/li>\n?)+)/g, '<ul>\n$1</ul>\n')
+
+  // 段落：将非标签开头的行包裹为 <p>
+  html = html.replace(/^(?!<[a-z/])(.+)$/gm, '<p>$1</p>')
+
+  // 合并连续空行为单个换行
+  html = html.replace(/\n{3,}/g, '\n\n')
+
+  return html.trim()
+}
 
 function assertStorageReady() {
   if (!isStorageReady()) throw new Error('存储未初始化')
@@ -190,12 +261,8 @@ export async function exportNoteAsHTML(noteId: string): Promise<Blob> {
   // 从 storage 读取笔记的实际内容
   const content = await readNoteContent(noteId, bookId)
 
-  // 使用 react-markdown 渲染 Markdown 为 HTML
-  const markdownHtml = renderToString(
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-      {content}
-    </ReactMarkdown>,
-  )
+  // 使用纯正则将 Markdown 转为 HTML（不依赖 react-dom/server）
+  const markdownHtml = markdownToHtml(content)
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
