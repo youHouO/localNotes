@@ -73,19 +73,19 @@ describe('note-engine', () => {
       expect(() => getBook('any-id')).toThrow('存储未初始化')
     })
 
-    it('createBook 应抛出 "存储未初始化"', () => {
+    it('createBook 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => createBook('书名')).toThrow('存储未初始化')
+      await expect(createBook('书名')).rejects.toThrow('存储未初始化')
     })
 
-    it('renameBook 应抛出 "存储未初始化"', () => {
+    it('renameBook 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => renameBook('id', '新名')).toThrow('存储未初始化')
+      await expect(renameBook('id', '新名')).rejects.toThrow('存储未初始化')
     })
 
-    it('deleteBook 应抛出 "存储未初始化"', () => {
+    it('deleteBook 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => deleteBook('id')).toThrow('存储未初始化')
+      await expect(deleteBook('id')).rejects.toThrow('存储未初始化')
     })
 
     it('listVolumes 应抛出 "存储未初始化"', () => {
@@ -93,19 +93,19 @@ describe('note-engine', () => {
       expect(() => listVolumes('book-id')).toThrow('存储未初始化')
     })
 
-    it('createVolume 应抛出 "存储未初始化"', () => {
+    it('createVolume 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => createVolume('book-id', '卷名')).toThrow('存储未初始化')
+      await expect(createVolume('book-id', '卷名')).rejects.toThrow('存储未初始化')
     })
 
-    it('renameVolume 应抛出 "存储未初始化"', () => {
+    it('renameVolume 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => renameVolume('id', '新名')).toThrow('存储未初始化')
+      await expect(renameVolume('id', '新名')).rejects.toThrow('存储未初始化')
     })
 
-    it('deleteVolume 应抛出 "存储未初始化"', () => {
+    it('deleteVolume 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => deleteVolume('id')).toThrow('存储未初始化')
+      await expect(deleteVolume('id')).rejects.toThrow('存储未初始化')
     })
 
     it('listNotes 应抛出 "存储未初始化"', () => {
@@ -118,19 +118,19 @@ describe('note-engine', () => {
       expect(() => getNote('id')).toThrow('存储未初始化')
     })
 
-    it('createNote 应抛出 "存储未初始化"', () => {
+    it('createNote 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => createNote('vol-id', '标题')).toThrow('存储未初始化')
+      await expect(createNote('vol-id', '标题')).rejects.toThrow('存储未初始化')
     })
 
-    it('renameNote 应抛出 "存储未初始化"', () => {
+    it('renameNote 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => renameNote('id', '新标题')).toThrow('存储未初始化')
+      await expect(renameNote('id', '新标题')).rejects.toThrow('存储未初始化')
     })
 
-    it('deleteNote 应抛出 "存储未初始化"', () => {
+    it('deleteNote 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => deleteNote('id')).toThrow('存储未初始化')
+      await expect(deleteNote('id')).rejects.toThrow('存储未初始化')
     })
 
     it('searchNotes 应抛出 "存储未初始化"', () => {
@@ -143,19 +143,19 @@ describe('note-engine', () => {
       expect(() => listTrash()).toThrow('存储未初始化')
     })
 
-    it('restoreFromTrash 应抛出 "存储未初始化"', () => {
+    it('restoreFromTrash 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => restoreFromTrash('id', 'note')).toThrow('存储未初始化')
+      await expect(restoreFromTrash('id', 'note')).rejects.toThrow('存储未初始化')
     })
 
-    it('permanentDelete 应抛出 "存储未初始化"', () => {
+    it('permanentDelete 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => permanentDelete('id', 'note')).toThrow('存储未初始化')
+      await expect(permanentDelete('id', 'note')).rejects.toThrow('存储未初始化')
     })
 
-    it('cleanExpiredTrash 应抛出 "存储未初始化"', () => {
+    it('cleanExpiredTrash 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => cleanExpiredTrash()).toThrow('存储未初始化')
+      await expect(cleanExpiredTrash()).rejects.toThrow('存储未初始化')
     })
 
     it('listTemplates 应抛出 "存储未初始化"', () => {
@@ -163,19 +163,19 @@ describe('note-engine', () => {
       expect(() => listTemplates()).toThrow('存储未初始化')
     })
 
-    it('createTemplate 应抛出 "存储未初始化"', () => {
+    it('createTemplate 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => createTemplate('名', '内容')).toThrow('存储未初始化')
+      await expect(createTemplate('名', '内容')).rejects.toThrow('存储未初始化')
     })
 
-    it('updateTemplate 应抛出 "存储未初始化"', () => {
+    it('updateTemplate 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => updateTemplate('id', '名', '内容')).toThrow('存储未初始化')
+      await expect(updateTemplate('id', '名', '内容')).rejects.toThrow('存储未初始化')
     })
 
-    it('deleteTemplate 应抛出 "存储未初始化"', () => {
+    it('deleteTemplate 应抛出 "存储未初始化"', async () => {
       vi.mocked(storage.isStorageReady).mockReturnValue(false)
-      expect(() => deleteTemplate('id')).toThrow('存储未初始化')
+      await expect(deleteTemplate('id')).rejects.toThrow('存储未初始化')
     })
   })
 
@@ -258,11 +258,11 @@ describe('note-engine', () => {
 
   // ==================== createBook ====================
   describe('createBook', () => {
-    it('应正确创建书并返回 Book 对象', () => {
+    it('应正确创建书并返回 Book 对象', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = createBook('新书')
+      const result = await createBook('新书')
       expect(result.name).toBe('新书')
       expect(result.id).toBeDefined()
       expect(result.createdAt).toBeGreaterThan(0)
@@ -272,29 +272,29 @@ describe('note-engine', () => {
       )
     })
 
-    it('空书名应允许创建（业务层不拦截）', () => {
+    it('空书名应允许创建（业务层不拦截）', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      const result = createBook('')
+      const result = await createBook('')
       expect(result.name).toBe('')
     })
 
-    it('超长书名应允许创建（数据库层限制）', () => {
+    it('超长书名应允许创建（数据库层限制）', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
       const longName = 'a'.repeat(1000)
-      const result = createBook(longName)
+      const result = await createBook(longName)
       expect(result.name).toBe(longName)
     })
   })
 
   // ==================== renameBook ====================
   describe('renameBook', () => {
-    it('应执行 UPDATE SQL', () => {
+    it('应执行 UPDATE SQL', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      renameBook('book-1', '新名字')
+      await renameBook('book-1', '新名字')
 
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE books SET name'),
@@ -302,10 +302,10 @@ describe('note-engine', () => {
       )
     })
 
-    it('重命名为空字符串应执行 UPDATE', () => {
+    it('重命名为空字符串应执行 UPDATE', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      renameBook('book-1', '')
+      await renameBook('book-1', '')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE books SET name'),
         expect.arrayContaining(['', expect.any(Number), 'book-1']),
@@ -315,11 +315,11 @@ describe('note-engine', () => {
 
   // ==================== deleteBook ====================
   describe('deleteBook', () => {
-    it('应删除书及相关卷和笔记', () => {
+    it('应删除书及相关卷和笔记', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      deleteBook('book-1')
+      await deleteBook('book-1')
 
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM notes'),
@@ -365,11 +365,11 @@ describe('note-engine', () => {
 
   // ==================== createVolume ====================
   describe('createVolume', () => {
-    it('应正确创建卷', () => {
+    it('应正确创建卷', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = createVolume('book-1', '新卷')
+      const result = await createVolume('book-1', '新卷')
       expect(result.name).toBe('新卷')
       expect(result.bookId).toBe('book-1')
       expect(mockDb.run).toHaveBeenCalledWith(
@@ -378,20 +378,20 @@ describe('note-engine', () => {
       )
     })
 
-    it('空卷名应允许创建', () => {
+    it('空卷名应允许创建', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      const result = createVolume('book-1', '')
+      const result = await createVolume('book-1', '')
       expect(result.name).toBe('')
     })
   })
 
   // ==================== renameVolume ====================
   describe('renameVolume', () => {
-    it('应执行 UPDATE SQL', () => {
+    it('应执行 UPDATE SQL', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      renameVolume('vol-1', '新卷名')
+      await renameVolume('vol-1', '新卷名')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE volumes SET name'),
         expect.anything(),
@@ -401,7 +401,7 @@ describe('note-engine', () => {
 
   // ==================== deleteVolume ====================
   describe('deleteVolume', () => {
-    it('应将卷及笔记移入回收站', () => {
+    it('应将卷及笔记移入回收站', async () => {
       const mockDb = createMockDB([
         // getVolume 查询
         [
@@ -414,7 +414,7 @@ describe('note-engine', () => {
         [],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      deleteVolume('vol-1')
+      await deleteVolume('vol-1')
       // 卷被移入 trash
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('INSERT OR REPLACE INTO trash'),
@@ -476,13 +476,13 @@ describe('note-engine', () => {
 
   // ==================== createNote ====================
   describe('createNote', () => {
-    it('卷不存在时应抛出错误', () => {
+    it('卷不存在时应抛出错误', async () => {
       const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      expect(() => createNote('vol-nonexist', '标题')).toThrow('卷不存在')
+      await expect(createNote('vol-nonexist', '标题')).rejects.toThrow('卷不存在')
     })
 
-    it('应正确创建笔记', () => {
+    it('应正确创建笔记', async () => {
       const mockDb = createMockDB([
         // getVolume 查询结果
         [
@@ -494,7 +494,7 @@ describe('note-engine', () => {
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = createNote('vol-1', '新笔记')
+      const result = await createNote('vol-1', '新笔记')
       expect(result.title).toBe('新笔记')
       expect(result.volumeId).toBe('vol-1')
       expect(result.bookId).toBe('book-1')
@@ -504,7 +504,7 @@ describe('note-engine', () => {
       )
     })
 
-    it('空标题应允许创建', () => {
+    it('空标题应允许创建', async () => {
       const mockDb = createMockDB([
         [
           {
@@ -514,11 +514,11 @@ describe('note-engine', () => {
         ],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      const result = createNote('vol-1', '')
+      const result = await createNote('vol-1', '')
       expect(result.title).toBe('')
     })
 
-    it('超长标题应允许创建', () => {
+    it('超长标题应允许创建', async () => {
       const mockDb = createMockDB([
         [
           {
@@ -529,17 +529,17 @@ describe('note-engine', () => {
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
       const longTitle = 'a'.repeat(1000)
-      const result = createNote('vol-1', longTitle)
+      const result = await createNote('vol-1', longTitle)
       expect(result.title).toBe(longTitle)
     })
   })
 
   // ==================== renameNote ====================
   describe('renameNote', () => {
-    it('应执行 UPDATE SQL', () => {
+    it('应执行 UPDATE SQL', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      renameNote('note-1', '新标题')
+      await renameNote('note-1', '新标题')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE notes SET title'),
         expect.anything(),
@@ -549,7 +549,7 @@ describe('note-engine', () => {
 
   // ==================== deleteNote ====================
   describe('deleteNote', () => {
-    it('应删除笔记并更新计数', () => {
+    it('应删除笔记并更新计数', async () => {
       const mockDb = createMockDB([
         // getNote 查询
         [
@@ -561,7 +561,7 @@ describe('note-engine', () => {
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      deleteNote('note-1')
+      await deleteNote('note-1')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM notes'),
         expect.arrayContaining(['note-1']),
@@ -691,11 +691,11 @@ describe('note-engine', () => {
       const mockDb = createMockDB([
         [
           {
-            columns: ['id', 'type', 'name', 'parent_id', 'deleted_at', 'expires_at'],
+            columns: ['id', 'type', 'name', 'parent_id', 'deleted_at', 'expires_at', 'book_id'],
             values: [
-              ['note-del-1', 'note', '已删除笔记', 'vol-1', nowMs - 60000, nowMs - 60000 + retentionMs],
-              ['vol-del-1', 'volume', '已删除卷', 'book-1', nowMs - 600000, nowMs - 600000 + retentionMs],
-              ['book-del-1', 'book', '已删除书', null, nowMs - 3600000, nowMs - 3600000 + retentionMs],
+              ['note-del-1', 'note', '已删除笔记', 'vol-1', nowMs - 60000, nowMs - 60000 + retentionMs, 'book-1'],
+              ['vol-del-1', 'volume', '已删除卷', 'book-1', nowMs - 600000, nowMs - 600000 + retentionMs, 'book-1'],
+              ['book-del-1', 'book', '已删除书', null, nowMs - 3600000, nowMs - 3600000 + retentionMs, null],
             ],
           },
         ],
@@ -731,13 +731,13 @@ describe('note-engine', () => {
 
   // ==================== restoreFromTrash ====================
   describe('restoreFromTrash', () => {
-    it('条目不存在时应抛出错误', () => {
+    it('条目不存在时应抛出错误', async () => {
       const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      expect(() => restoreFromTrash('nonexist', 'note')).toThrow('回收站中不存在该项目')
+      await expect(restoreFromTrash('nonexist', 'note')).rejects.toThrow('回收站中不存在该项目')
     })
 
-    it('应正确恢复笔记', () => {
+    it('应正确恢复笔记', async () => {
       const mockDb = createMockDB([
         [
           {
@@ -748,7 +748,7 @@ describe('note-engine', () => {
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      restoreFromTrash('note-1', 'note')
+      await restoreFromTrash('note-1', 'note')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM trash'),
         expect.arrayContaining(['note-1']),
@@ -762,42 +762,42 @@ describe('note-engine', () => {
 
   // ==================== permanentDelete ====================
   describe('permanentDelete', () => {
-    it('应从 trash 表删除记录', () => {
+    it('应从 trash 表删除记录', async () => {
       const mockDb = createMockDB([
         [{ columns: ['deleted_at'], values: [[1000000]] }],
       ])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      permanentDelete('note-1', 'note')
+      await permanentDelete('note-1', 'note')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM trash'),
         expect.arrayContaining(['note-1']),
       )
     })
 
-    it('条目不存在时应静默处理', () => {
+    it('条目不存在时应静默处理', async () => {
       const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      expect(() => permanentDelete('nonexist', 'note')).not.toThrow()
+      await expect(permanentDelete('nonexist', 'note')).resolves.toBeUndefined()
     })
   })
 
   // ==================== cleanExpiredTrash ====================
   describe('cleanExpiredTrash', () => {
-    it('无过期条目时应返回 0', () => {
+    it('无过期条目时应返回 0', async () => {
       const mockDb = createMockDB([[]])
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      expect(cleanExpiredTrash()).toBe(0)
+      expect(await cleanExpiredTrash()).toBe(0)
     })
 
-    it('应删除过期条目并返回数量', () => {
+    it('应删除过期条目并返回数量', async () => {
       const mockDb = createMockDB([
         [{ columns: ['id', 'type', 'deleted_at'], values: [['n1', 'note', 1000], ['n2', 'note', 2000]] }],
       ])
       mockDb.getRowsModified = vi.fn().mockReturnValue(2)
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const count = cleanExpiredTrash()
+      const count = await cleanExpiredTrash()
       expect(count).toBe(2)
     })
   })
@@ -831,11 +831,11 @@ describe('note-engine', () => {
 
   // ==================== createTemplate ====================
   describe('createTemplate', () => {
-    it('应正确创建模板', () => {
+    it('应正确创建模板', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
 
-      const result = createTemplate('会议记录', '## 会议内容', 'global')
+      const result = await createTemplate('会议记录', '## 会议内容', 'global')
       expect(result.name).toBe('会议记录')
       expect(result.scope).toBe('global')
       expect(mockDb.run).toHaveBeenCalledWith(
@@ -844,10 +844,10 @@ describe('note-engine', () => {
       )
     })
 
-    it('空内容应允许创建', () => {
+    it('空内容应允许创建', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      const result = createTemplate('空模板', '', 'book')
+      const result = await createTemplate('空模板', '', 'book')
       expect(result.name).toBe('空模板')
       expect(result.content).toBe('')
     })
@@ -855,10 +855,10 @@ describe('note-engine', () => {
 
   // ==================== updateTemplate ====================
   describe('updateTemplate', () => {
-    it('应执行 UPDATE SQL', () => {
+    it('应执行 UPDATE SQL', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      updateTemplate('tpl-1', '新名', '新内容')
+      await updateTemplate('tpl-1', '新名', '新内容')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE templates SET'),
         expect.anything(),
@@ -868,10 +868,10 @@ describe('note-engine', () => {
 
   // ==================== deleteTemplate ====================
   describe('deleteTemplate', () => {
-    it('应从数据库删除模板', () => {
+    it('应从数据库删除模板', async () => {
       const mockDb = createMockDB()
       vi.mocked(database.getDB).mockReturnValue(mockDb as never)
-      deleteTemplate('tpl-1')
+      await deleteTemplate('tpl-1')
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM templates'),
         expect.arrayContaining(['tpl-1']),

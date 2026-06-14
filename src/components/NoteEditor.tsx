@@ -217,7 +217,7 @@ export function NoteEditor({ noteId, embedded = false, onBack, searchKeyword, se
       const updateListener = EditorView.updateListener.of((update: any) => {
         if (update.docChanged && !isExternalUpdate.current) {
           const c = update.state.doc.toString(); setContent(c)
-          setWordCount(c.replace(/\s/g, '').length); scheduleSave(c)
+          setWordCount(c.length); scheduleSave(c)
         }
       })
       // 插入日期时间快捷键 Ctrl+Shift+D

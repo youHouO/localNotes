@@ -4,7 +4,7 @@
  */
 
 import { getDB, saveDB, isFTS5Available, updateFTSContent } from './database'
-import { isStorageReady, moveFile, deleteFile, fileExists, readFile, writeFile } from './storage'
+import { isStorageReady, moveFile, deleteFile, deleteDirectory, fileExists, readFile, writeFile } from './storage'
 import { sha256, encryptString, decryptToString } from './encryption'
 import type { Book, Volume, Note, Template } from '@/types'
 
@@ -36,7 +36,7 @@ async function computeContentHash(content: string): Promise<string> {
 
 /* ===================== 书操作 ===================== */
 
-export function createBook(name: string): Book {
+export async function createBook(name: string): Promise<Book> {
   assertStorageReady()
   const db = getDB()
   const id = generateId()
@@ -45,8 +45,8 @@ export function createBook(name: string): Book {
     `INSERT INTO books (id, name, created_at, updated_at, note_count) VALUES (?, ?, ?, ?, ?)`,
     [id, name, t, t, 0],
   )
+  await saveDB()
   return { id, name, createdAt: t, updatedAt: t, noteCount: 0 }
-  saveDB()
 }
 
 export type SortBy = 'updatedAt' | 'createdAt'
@@ -86,7 +86,7 @@ export function getBook(id: string): Book | null {
   }
 }
 
-export function renameBook(id: string, newName: string): void {
+export async function renameBook(id: string, newName: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   db.run(`UPDATE books SET name = ?, updated_at = ? WHERE id = ? AND updated_at > 0`, [
@@ -94,10 +94,10 @@ export function renameBook(id: string, newName: string): void {
     now(),
     id,
   ])
-  saveDB()
+  await saveDB()
 }
 
-export function deleteBook(id: string): void {
+export async function deleteBook(id: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   const deletedAt = now()
@@ -137,12 +137,12 @@ export function deleteBook(id: string): void {
   db.run(`DELETE FROM notes WHERE book_id = ?`, [id])
   db.run(`DELETE FROM volumes WHERE book_id = ?`, [id])
   db.run(`DELETE FROM books WHERE id = ?`, [id])
-  saveDB()
+  await saveDB()
 }
 
 /* ===================== 卷操作 ===================== */
 
-export function createVolume(bookId: string, name: string): Volume {
+export async function createVolume(bookId: string, name: string): Promise<Volume> {
   assertStorageReady()
   const db = getDB()
   const id = generateId()
@@ -151,8 +151,8 @@ export function createVolume(bookId: string, name: string): Volume {
     `INSERT INTO volumes (id, book_id, name, created_at, updated_at, note_count, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, bookId, name, t, t, 0, 0],
   )
+  await saveDB()
   return { id, bookId, name, createdAt: t, updatedAt: t, noteCount: 0, sortOrder: 0 }
-  saveDB()
 }
 
 export function listVolumes(bookId: string, sortBy: SortBy = 'updatedAt'): Volume[] {
@@ -195,7 +195,7 @@ export function getVolume(id: string): Volume | null {
   }
 }
 
-export function renameVolume(id: string, newName: string): void {
+export async function renameVolume(id: string, newName: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   db.run(`UPDATE volumes SET name = ?, updated_at = ? WHERE id = ? AND updated_at > 0`, [
@@ -203,10 +203,10 @@ export function renameVolume(id: string, newName: string): void {
     now(),
     id,
   ])
-  saveDB()
+  await saveDB()
 }
 
-export function deleteVolume(id: string): void {
+export async function deleteVolume(id: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   const vol = getVolume(id)
@@ -231,12 +231,12 @@ export function deleteVolume(id: string): void {
   // 3. 从数据库中物理删除
   db.run(`DELETE FROM notes WHERE volume_id = ?`, [id])
   db.run(`DELETE FROM volumes WHERE id = ?`, [id])
-  saveDB()
+  await saveDB()
 }
 
 /* ===================== 笔记操作 ===================== */
 
-export function createNote(volumeId: string, title: string, content = ''): Note {
+export async function createNote(volumeId: string, title: string, content = ''): Promise<Note> {
   assertStorageReady()
   const db = getDB()
   const vol = getVolume(volumeId)
@@ -263,6 +263,7 @@ export function createNote(volumeId: string, title: string, content = ''): Note 
     // FTS 更新失败不阻断主流程
   }
 
+  await saveDB()
   return {
     id,
     volumeId,
@@ -369,7 +370,7 @@ export async function saveNote(note: Note, content: string): Promise<void> {
     // FTS 更新失败不阻断主流程
   }
 
-  saveDB()
+  await saveDB()
 }
 
 export async function saveNoteById(noteId: string, content: string, title?: string): Promise<void> {
@@ -383,7 +384,7 @@ export async function saveNoteById(noteId: string, content: string, title?: stri
   await saveNote({ ...note, title: title ?? note.title }, content)
 }
 
-export function deleteNote(id: string): void {
+export async function deleteNote(id: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   const note = getNote(id)
@@ -409,10 +410,10 @@ export function deleteNote(id: string): void {
   db.run(`UPDATE volumes SET note_count = note_count - 1, updated_at = ? WHERE id = ?`, [deletedAt, note.volumeId])
   db.run(`UPDATE books SET note_count = note_count - 1, updated_at = ? WHERE id = ?`, [deletedAt, note.bookId])
   db.run(`DELETE FROM notes WHERE id = ?`, [id])
-  saveDB()
+  await saveDB()
 }
 
-export function renameNote(id: string, newTitle: string): void {
+export async function renameNote(id: string, newTitle: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   db.run(`UPDATE notes SET title = ?, updated_at = ? WHERE id = ? AND updated_at > 0`, [
@@ -420,7 +421,7 @@ export function renameNote(id: string, newTitle: string): void {
     now(),
     id,
   ])
-  saveDB()
+  await saveDB()
 }
 
 export function listNotes(volumeId: string, sortBy: SortBy = 'createdAt'): Note[] {
@@ -539,26 +540,32 @@ export function listTrash(): TrashItem[] {
   const nowTime = now()
 
   const res = db.exec(
-    `SELECT id, type, name, parent_id, deleted_at, expires_at FROM trash WHERE expires_at > ? ORDER BY deleted_at DESC`,
+    `SELECT t.id, t.type, t.name, t.parent_id, t.deleted_at, t.expires_at,
+            CASE WHEN t.type = 'note' THEN v.book_id ELSE t.parent_id END as book_id
+     FROM trash t
+     LEFT JOIN volumes v ON t.type = 'note' AND t.parent_id = v.id
+     WHERE t.expires_at > ?
+     ORDER BY t.deleted_at DESC`,
     [nowTime],
   )
   if (!res || res.length === 0) return []
 
   return res[0].values.map((row) => {
     const type = row[1] as 'book' | 'volume' | 'note'
+    const bookId = row[6] as string | null
     return {
       id: row[0] as string,
       name: row[2] as string,
       type,
       deletedAt: row[4] as number,
       expiresAt: row[5] as number,
-      bookId: type === 'book' ? undefined : (row[3] as string),
+      bookId: type === 'book' ? undefined : (bookId ?? undefined),
       volumeId: type === 'note' ? (row[3] as string) : undefined,
     }
   })
 }
 
-export function restoreFromTrash(id: string, type: 'book' | 'volume' | 'note'): void {
+export async function restoreFromTrash(id: string, type: 'book' | 'volume' | 'note'): Promise<void> {
   assertStorageReady()
   const db = getDB()
 
@@ -606,16 +613,24 @@ export function restoreFromTrash(id: string, type: 'book' | 'volume' | 'note'): 
       [id, parentId ?? '', name, t, t, 0, 0],
     )
   } else {
-    const bookId = parentId ?? ''
+    // 对于笔记，parent_id 是 volumeId，需要通过 volumeId 查询 bookId
+    const volumeId = parentId ?? ''
+    let bookId = ''
+    if (volumeId) {
+      const volResult = db.exec(`SELECT book_id FROM volumes WHERE id = ?`, [volumeId])
+      if (volResult && volResult.length > 0 && volResult[0].values.length > 0) {
+        bookId = volResult[0].values[0][0] as string
+      }
+    }
     db.run(
       `INSERT INTO notes (id, volume_id, book_id, title, content_hash, created_at, updated_at, word_count, image_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, '', bookId, name, '', t, t, 0, 0],
+      [id, volumeId, bookId, name, '', t, t, 0, 0],
     )
   }
-  saveDB()
+  await saveDB()
 }
 
-export function permanentDelete(id: string, type: 'book' | 'volume' | 'note'): void {
+export async function permanentDelete(id: string, type: 'book' | 'volume' | 'note'): Promise<void> {
   assertStorageReady()
   const db = getDB()
 
@@ -633,10 +648,10 @@ export function permanentDelete(id: string, type: 'book' | 'volume' | 'note'): v
 
   // 3. 从 trash 表删除记录
   db.run(`DELETE FROM trash WHERE id = ?`, [id])
-  saveDB()
+  await saveDB()
 }
 
-export function cleanExpiredTrash(): number {
+export async function cleanExpiredTrash(): Promise<number> {
   assertStorageReady()
   const db = getDB()
   const nowTime = now()
@@ -667,6 +682,7 @@ export function cleanExpiredTrash(): number {
     total++
   }
 
+  await saveDB()
   return total
 }
 
@@ -690,14 +706,14 @@ export function listTemplates(): Template[] {
   }))
 }
 
-export function deleteTemplate(id: string): void {
+export async function deleteTemplate(id: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   db.run(`DELETE FROM templates WHERE id = ?`, [id])
-  saveDB()
+  await saveDB()
 }
 
-export function createTemplate(name: string, content: string, scope: 'global' | 'book', bookId?: string): Template {
+export async function createTemplate(name: string, content: string, scope: 'global' | 'book', bookId?: string): Promise<Template> {
   assertStorageReady()
   const db = getDB()
   const id = generateId()
@@ -706,11 +722,11 @@ export function createTemplate(name: string, content: string, scope: 'global' | 
     `INSERT INTO templates (id, name, content, scope, book_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, name, content, scope, bookId ?? null, t, t],
   )
+  await saveDB()
   return { id, name, content, scope, bookId, createdAt: t, updatedAt: t }
-  saveDB()
 }
 
-export function updateTemplate(id: string, name: string, content: string): void {
+export async function updateTemplate(id: string, name: string, content: string): Promise<void> {
   assertStorageReady()
   const db = getDB()
   db.run(`UPDATE templates SET name = ?, content = ?, updated_at = ? WHERE id = ?`, [
@@ -719,7 +735,7 @@ export function updateTemplate(id: string, name: string, content: string): void 
     now(),
     id,
   ])
-  saveDB()
+  await saveDB()
 }
 
 export function loadTemplate(id: string): Template | null {

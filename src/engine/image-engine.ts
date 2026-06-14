@@ -13,11 +13,8 @@ export interface ImageInfo {
   id: string
   noteId: string
   bookId: string
-  originalName: string
-  webpName: string
+  localPath: string
   size: number
-  width: number
-  height: number
   createdAt: number
 }
 
@@ -47,16 +44,13 @@ export async function saveImage(
   const id = generateId()
   const webpName = `${id}.webp`
   const path = `Books/${bookId}/Assets/Images/${webpName}`
+  const localPath = path
 
   let finalData: Uint8Array
-  let width = 0
-  let height = 0
 
   try {
     const compressed = await compressImage(imageData)
     finalData = compressed.data
-    width = compressed.width
-    height = compressed.height
   } catch {
     // 压缩失败（如非图片数据），降级为直接保存原始数据
     finalData = imageData
@@ -68,19 +62,16 @@ export async function saveImage(
     id,
     noteId,
     bookId,
-    originalName,
-    webpName,
+    localPath,
     size: finalData.length,
-    width,
-    height,
     createdAt: now(),
   }
 
   // 记录到数据库
   const db = getDB()
   db.run(
-    `INSERT INTO images (id, note_id, book_id, original_name, webp_name, size, width, height, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, noteId, bookId, originalName, webpName, info.size, info.width, info.height, info.createdAt],
+    `INSERT INTO images (id, note_id, book_id, local_path, size, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, noteId, bookId, localPath, info.size, info.createdAt],
   )
 
   return info
@@ -154,7 +145,7 @@ export function listNoteImages(noteId: string): ImageInfo[] {
   assertStorageReady()
   const db = getDB()
   const res = db.exec(
-    `SELECT id, note_id, book_id, original_name, webp_name, size, width, height, created_at FROM images WHERE note_id = ?`,
+    `SELECT id, note_id, book_id, local_path, size, created_at FROM images WHERE note_id = ?`,
     [noteId],
   )
   if (!res || res.length === 0) return []
@@ -162,12 +153,9 @@ export function listNoteImages(noteId: string): ImageInfo[] {
     id: row[0] as string,
     noteId: row[1] as string,
     bookId: row[2] as string,
-    originalName: row[3] as string,
-    webpName: row[4] as string,
-    size: row[5] as number,
-    width: row[6] as number,
-    height: row[7] as number,
-    createdAt: row[8] as number,
+    localPath: row[3] as string,
+    size: row[4] as number,
+    createdAt: row[5] as number,
   }))
 }
 
@@ -178,7 +166,7 @@ export async function listBookImages(bookId: string): Promise<ImageInfo[]> {
   assertStorageReady()
   const db = getDB()
   const res = db.exec(
-    `SELECT id, note_id, book_id, original_name, webp_name, size, width, height, created_at FROM images WHERE book_id = ?`,
+    `SELECT id, note_id, book_id, local_path, size, created_at FROM images WHERE book_id = ?`,
     [bookId],
   )
   if (!res || res.length === 0) return []
@@ -186,12 +174,9 @@ export async function listBookImages(bookId: string): Promise<ImageInfo[]> {
     id: row[0] as string,
     noteId: row[1] as string,
     bookId: row[2] as string,
-    originalName: row[3] as string,
-    webpName: row[4] as string,
-    size: row[5] as number,
-    width: row[6] as number,
-    height: row[7] as number,
-    createdAt: row[8] as number,
+    localPath: row[3] as string,
+    size: row[4] as number,
+    createdAt: row[5] as number,
   }))
 }
 
@@ -216,7 +201,7 @@ export async function syncImages(noteId: string, config?: SyncConfig): Promise<v
 
   // 查询该笔记下未同步的图片
   const unsyncedRes = db.exec(
-    `SELECT id, book_id, webp_name FROM images WHERE note_id = ? AND synced = 0`,
+    `SELECT id, book_id, local_path FROM images WHERE note_id = ? AND synced = 0`,
     [noteId],
   )
 
@@ -227,7 +212,7 @@ export async function syncImages(noteId: string, config?: SyncConfig): Promise<v
   const images = unsyncedRes[0].values.map((row) => ({
     id: row[0] as string,
     bookId: row[1] as string,
-    webpName: row[2] as string,
+    localPath: row[2] as string,
   }))
 
   // 逐个上传并标记为已同步
@@ -238,8 +223,9 @@ export async function syncImages(noteId: string, config?: SyncConfig): Promise<v
 
       // 如果有同步配置，实际上传到云盘
       if (config) {
-        const localPath = `Books/${img.bookId}/Assets/Images/${img.webpName}`
-        const remoteSubPath = `images/${img.webpName}`
+        const localPath = img.localPath
+        const fileName = localPath.split('/').pop() ?? img.id
+        const remoteSubPath = `images/${fileName}`
         const uploaded = await uploadFile(config, localPath, remoteSubPath)
         if (!uploaded) {
           console.warn(`图片上传失败，跳过标记: ${img.id}`)
