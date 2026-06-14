@@ -469,11 +469,14 @@ export function searchNotes(keyword: string, bookId?: string, limit = 50): Searc
   let params: (string | number)[]
 
   if (ftsAvailable) {
+    // 使用 FTS5 MATCH 查询，同时获取匹配片段
+    // snippet 函数参数: (表名, 列索引, 开始标记, 结束标记, 省略号, 最大片段长度)
     sql = `
       SELECT n.id as note_id, n.title as note_title, v.id as volume_id, v.name as volume_name,
-             b.id as book_id, b.name as book_name, snippet(notes_fts, 0, '【', '】', '...', 64) as snippet
-      FROM notes_fts fts
-      JOIN notes n ON fts.note_id = n.id
+             b.id as book_id, b.name as book_name,
+             snippet(notes_fts, 2, '<mark>', '</mark>', '...', 64) as snippet
+      FROM notes_fts
+      JOIN notes n ON notes_fts.note_id = n.id
       JOIN volumes v ON n.volume_id = v.id
       JOIN books b ON n.book_id = b.id
       WHERE notes_fts MATCH ? AND n.updated_at > 0

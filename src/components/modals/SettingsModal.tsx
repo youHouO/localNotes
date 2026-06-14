@@ -11,7 +11,7 @@ import {
   listTrash, restoreFromTrash, permanentDelete,
   listTemplates, deleteTemplate, listBooks, listVolumes, listNotes,
 } from '@/engine/note-engine'
-import { getKeyFingerprint } from '@/engine/encryption'
+
 import { exportBookAsZip } from '@/engine/export-engine'
 import type { TrashItem } from '@/engine/note-engine'
 import type { Template, Book } from '@/types'
@@ -41,7 +41,7 @@ export function SettingsModal({ open, onClose, initialPage }: SettingsModalProps
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setSubPage('main'); onClose() } }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { handleClose() } }}>
       <DialogContent className="max-w-[520px] max-h-[80vh] overflow-hidden flex flex-col p-0">
         {subPage === 'main' && (
           <>
@@ -676,53 +676,13 @@ function ExportSettingsContent() {
 }
 
 function SecuritySettingsContent() {
-  const [keyFingerprint, setKeyFingerprint] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const fp = await getKeyFingerprint()
-        if (!cancelled) setKeyFingerprint(fp)
-      } catch {
-        if (!cancelled) setKeyFingerprint(null)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [])
-
   return (
     <div className="space-y-4">
-      {/* 加密状态 */}
+      {/* 加密说明 */}
       <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="text-sm font-medium text-blue-800">笔记内容加密</div>
-        <div className="text-xs text-blue-600 mt-0.5">
-          所有笔记默认使用 AES-256-GCM 加密存储
-        </div>
-      </div>
-
-      {/* 密钥状态 */}
-      <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="text-sm font-medium text-blue-800 mb-2">密钥信息</div>
-        {loading ? (
-          <div className="text-xs text-blue-600">加载中...</div>
-        ) : keyFingerprint ? (
-          <div className="text-xs text-blue-600">
-            密钥指纹: {keyFingerprint}
-          </div>
-        ) : (
-          <div className="text-xs text-orange-600">未初始化（启用加密后将自动生成密钥）</div>
-        )}
-      </div>
-
-      {/* 加密算法说明 */}
-      <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="text-sm font-medium text-blue-800 mb-1">AES-256-GCM 加密</div>
+        <div className="text-sm font-medium text-blue-800 mb-1">数据加密保护</div>
         <div className="text-xs text-blue-600 leading-relaxed">
-          所有笔记均使用 AES-256-GCM 算法加密存储。密钥由软件内置统一生成（PBKDF2 派生），无需用户设置密码，保证数据不是明文即可。
+          所有笔记文件均使用 AES-256-GCM 算法加密存储。用其他软件打开笔记文件时只能看到乱码，只有在 LocalNotes 内才能正常读取。
         </div>
       </div>
 
